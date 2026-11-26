@@ -176,7 +176,7 @@ const ROTAS = {
     };
   },
   'GET /api/data/estoque': async () => {
-    const [ins, movs] = await Promise.all([tudo('insumos', '*', (q) => q.order('nome')), tudo('estoque_movimentos', '*', (q) => q.order('data'))]);
+    const [ins, movs] = await Promise.all([tudo('insumos', '*', (q) => q.neq('uso', 'receita').order('nome')), tudo('estoque_movimentos', '*', (q) => q.order('data'))]);
     const nome = new Map(ins.map((i) => [i.id, i]));
     return {
       base: ins.map((i) => ({ id: i.id, produto: i.nome, categoria: i.categoria || 'Sem categoria', unidade: i.unidade, estoqueMinimo: Number(i.estoque_minimo) || 0,
