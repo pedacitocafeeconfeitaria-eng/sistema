@@ -4,6 +4,7 @@ import { h, brand, icon } from '../ui.js';
 const CARDS = [
   { href: '/cozinha', icon: 'chef', title: 'Cozinha', text: 'Registro de produção e de desperdício da cozinha.' },
   { href: '/balcao', icon: 'clipboard', title: 'Relatório do balcão', text: 'Problemas com produtos, observações do dia e falta de estoque.' },
+  { href: '/encomenda', icon: 'cake', title: 'Encomendas', text: 'Bolos decorados e eventos: anotar pedido, comprovante e agenda da cozinha.' },
   { href: '/movimentacao', icon: 'arrows', title: 'Movimentação de estoque', text: 'Entradas (compras) e saídas de insumos.' },
   { href: '/contagem', icon: 'box', title: 'Contagem de estoque', text: 'Contar o que tem na loja e acertar o saldo do sistema.' },
   { href: '/lista', icon: 'cart', title: 'Lista de compras', text: 'Lista compartilhada entre as lojas.' },

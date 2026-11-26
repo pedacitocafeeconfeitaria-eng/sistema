@@ -74,6 +74,10 @@ const ROTAS = {
 
   // Contagem de estoque
   'GET /api/public/saldos': async (_, q) => ({ itens: await rpc('form_saldos', { p_codigo: codigoEquipe.get(), p_loja: q.loja }) }),
+  'GET /api/public/catalogo-encomenda': async () => rpc('form_catalogo_encomenda', { p_codigo: codigoEquipe.get() }),
+  'POST /api/public/encomenda': async (b) => ({ numero: await rpc('form_encomenda', { p_codigo: codigoEquipe.get(), p: b }) }),
+  'GET /api/public/agenda-encomendas': async (_, q) => rpc('form_agenda_encomendas', { p_codigo: codigoEquipe.get(), p_loja: lojaDB(q.loja), p_de: q.de, p_ate: q.ate }),
+  'POST /api/public/encomenda-status': async (b) => rpc('form_encomenda_status', { p_codigo: codigoEquipe.get(), p_id: b.id, p_status: b.status }),
   'POST /api/public/contagem': async (b) => rpc('form_contagem', { p_codigo: codigoEquipe.get(), p_loja: b.loja, p_nome: b.nome, p_itens: b.itens, p_obs: b.obs || null }),
 
   // Cozinha: produção
@@ -270,7 +274,7 @@ export async function loadData(name, force = false) {
 export function clearMemo() { memo.clear(); }
 
 // ---------- sessão ----------
-const TODAS = ['dashboard', 'financeiro', 'projecoes', 'operacao', 'estoque', 'compras', 'notas', 'fichas', 'cadastros', 'rh', 'contratos', 'denuncias', 'config'];
+const TODAS = ['dashboard', 'financeiro', 'projecoes', 'operacao', 'estoque', 'compras', 'notas', 'encomendas', 'fichas', 'cadastros', 'rh', 'contratos', 'denuncias', 'config'];
 export async function carregarSessao() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return null;

@@ -1,6 +1,7 @@
 // Roteador e layouts.
 import { api, clearMemo, sb, carregarSessao } from './api.js';
-import { h, icon, brand, destroyCharts, alertBox, loading } from './ui.js';
+import { h, icon, brand, destroyCharts, alertBox, loading, toast } from './ui.js';
+import { iniciarNotificacoes, pararNotificacoes, sino, limparSinos } from './notificacoes.js';
 
 const root = document.getElementById('app');
 export const session = { user: null };
@@ -19,6 +20,7 @@ const PUBLIC = {
   '/movimentacao': () => import('./pages/form-movimentacao.js'),
   '/lista': () => import('./pages/form-lista.js'),
   '/contagem': () => import('./pages/form-contagem.js'),
+  '/encomenda': () => import('./pages/form-encomenda.js'),
   '/denuncia': () => import('./pages/form-denuncia.js'),
   '/login': () => import('./pages/login.js'),
 };
@@ -28,6 +30,9 @@ const GESTAO = [
   { re: /^\/gestao\/?$/, area: 'dashboard', load: () => import('./pages/dashboard.js') },
   { re: /^\/gestao\/lancamentos$/, area: 'financeiro', load: () => import('./pages/lancamentos.js') },
   { re: /^\/gestao\/financeiro\/(villa|souza-cruz|grupo)$/, area: 'financeiro', load: () => import('./pages/financeiro.js') },
+  { re: /^\/gestao\/dre$/, area: 'financeiro', load: () => import('./pages/dre.js') },
+  { re: /^\/gestao\/atividades$/, area: 'dashboard', load: () => import('./pages/atividades.js') },
+  { re: /^\/gestao\/encomendas$/, area: 'encomendas', load: () => import('./pages/encomendas.js') },
   { re: /^\/gestao\/projecoes$/, area: 'projecoes', load: () => import('./pages/projecoes.js') },
   { re: /^\/gestao\/operacao\/(producao|desperdicio|ambos)$/, area: 'operacao', load: () => import('./pages/operacao.js') },
   { re: /^\/gestao\/estoque$/, area: 'estoque', load: () => import('./pages/estoque-lista.js') },
@@ -45,11 +50,13 @@ const GESTAO = [
 const NAV = [
   ['Visão geral', [
     { area: 'dashboard', label: 'Painel', icon: 'home', href: '/gestao' },
+    { area: 'dashboard', label: 'Atividades', icon: 'bell', href: '/gestao/atividades' },
   ]],
   ['Operação', [
     { area: 'operacao', label: 'Produção e perdas', icon: 'chef', href: '/gestao/operacao/ambos', sub: [['Visão geral', '/gestao/operacao/ambos'], ['Produção', '/gestao/operacao/producao'], ['Desperdício', '/gestao/operacao/desperdicio']] },
     { area: 'estoque', label: 'Estoque', icon: 'box', href: '/gestao/estoque', sub: [['Saldos', '/gestao/estoque'], ['Indicadores', '/gestao/estoque/dashboard']] },
     { area: 'compras', label: 'Compras', icon: 'cart', href: '/gestao/compras/pedidos', sub: [['Pedidos', '/gestao/compras/pedidos'], ['Sugestão de compra', '/gestao/compras/sugestao'], ['Fornecedores', '/gestao/compras/fornecedores'], ['Cotações e preços', '/gestao/compras/cotacoes']] },
+    { area: 'encomendas', label: 'Encomendas', icon: 'cake', href: '/gestao/encomendas' },
     { area: 'notas', label: 'Notas fiscais', icon: 'file', href: '/gestao/notas' },
     { area: 'fichas', label: 'Fichas técnicas', icon: 'clipboard', href: '/gestao/fichas' },
     { area: 'cadastros', label: 'Cadastros', icon: 'tag', href: '/gestao/cadastros/produtos', sub: [['Produtos de venda', '/gestao/cadastros/produtos'], ['Insumos', '/gestao/cadastros/insumos']] },
@@ -57,6 +64,7 @@ const NAV = [
   ['Financeiro', [
     { area: 'financeiro', label: 'Lançamentos', icon: 'money', href: '/gestao/lancamentos' },
     { area: 'financeiro', label: 'Resultados', icon: 'trend', href: '/gestao/financeiro/grupo', sub: [['Grupo', '/gestao/financeiro/grupo'], ['Villa', '/gestao/financeiro/villa'], ['Souza Cruz', '/gestao/financeiro/souza-cruz']] },
+    { area: 'financeiro', label: 'DRE', icon: 'file', href: '/gestao/dre' },
     { area: 'projecoes', label: 'Projeções', icon: 'calendar', href: '/gestao/projecoes' },
   ]],
   ['Pessoas e documentos', [
@@ -83,7 +91,21 @@ document.addEventListener('click', (e) => {
   navigate(a.getAttribute('href'));
 });
 window.addEventListener('hashchange', render);
-sb.auth.onAuthStateChange((ev) => { if (ev === 'SIGNED_OUT') { session.user = null; clearMemo(); } });
+// Instalar como aplicativo (Android/Chrome/Edge mostram o convite; iPhone é pelo Safari)
+let convite = null;
+addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); convite = e; });
+const instalado = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+async function instalarApp() {
+  if (convite) { convite.prompt(); const r = await convite.userChoice; convite = null; if (r.outcome === 'accepted') toast('App instalado! Procure o ícone da Pedacito na tela inicial.', 'ok'); return; }
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const { drawer } = await import('./crud.js');
+  drawer('Instalar como aplicativo', h('div', { class: 'form-stack' }, ios
+    ? [h('p', {}, 'No iPhone, abra este endereço no Safari e:'), h('ol', {}, h('li', {}, 'Toque no botão Compartilhar (quadrado com a seta para cima).'), h('li', {}, 'Escolha "Adicionar à Tela de Início".'), h('li', {}, 'Toque em "Adicionar".'))]
+    : [h('p', {}, 'No Android (Chrome):'), h('ol', {}, h('li', {}, 'Toque nos três pontinhos no canto de cima.'), h('li', {}, 'Escolha "Instalar app" ou "Adicionar à tela inicial".')),
+      h('p', {}, 'No computador (Chrome ou Edge): clique no ícone de instalar na barra de endereço (um monitor com seta) ou no menu ⋮ → "Instalar Pedacito".')],
+    h('p', { class: 'muted' }, 'Depois disso o sistema abre como um aplicativo, com o ícone da Pedacito, em tela cheia.')));
+}
+sb.auth.onAuthStateChange((ev) => { if (ev === 'SIGNED_OUT') { session.user = null; clearMemo(); pararNotificacoes(); } });
 
 export async function refreshSession() {
   session.user = await carregarSessao();
@@ -126,6 +148,7 @@ async function render() {
   if (!session.user) return navigate(`/login?next=${encodeURIComponent(path)}`, true);
 
   const route = GESTAO.find((r) => r.re.test(path));
+  if (session.user.role !== 'pendente') iniciarNotificacoes().catch(() => {});
   const main = h('main', { class: 'main' });
   root.replaceChildren(shell(path, main));
   if (!route) { main.append(alertBox('Página não encontrada.')); return; }
@@ -155,18 +178,20 @@ function shell(path, main) {
     }));
   });
   const el = h('div', { class: 'shell' });
+  limparSinos();
   const iniciais = session.user.username.split(/\s+/).map((p) => p[0]).slice(0, 2).join('').toUpperCase();
   const sidebar = h('aside', { class: 'sidebar' },
-    h('div', { class: 'sidebar-brand' }, brand()),
+    h('div', { class: 'sidebar-brand' }, brand(), session.user.role !== 'pendente' ? sino({ claro: true }) : null),
     h('div', { class: 'sidebar-scroll' }, grupos,
       h('nav', { class: 'nav-group' }, h('div', { class: 'nav-title' }, 'Lojas'),
-        h('a', { class: 'nav-link', href: '/', 'data-link': true }, icon('clipboard'), 'Formulários da equipe'))),
+        h('a', { class: 'nav-link', href: '/', 'data-link': true }, icon('clipboard'), 'Formulários da equipe'),
+        !instalado() ? h('button', { class: 'nav-link', onClick: instalarApp }, icon('download'), 'Instalar como app') : null)),
     h('div', { class: 'sidebar-foot' },
       h('div', { class: 'avatar' }, iniciais),
       h('div', { style: { minWidth: 0, flex: 1 } }, h('div', { class: 'who' }, session.user.username), h('div', { class: 'role' }, session.user.label)),
       h('button', { class: 'icon-btn light', title: 'Sair', onClick: logout }, icon('logout'))));
   sidebar.addEventListener('click', (e) => { if (e.target.closest('a')) el.classList.remove('nav-open'); });
-  const mobile = h('div', { class: 'mobile-bar' }, brand(), h('button', { onClick: () => el.classList.toggle('nav-open'), 'aria-label': 'Menu' }, icon('menu')));
+  const mobile = h('div', { class: 'mobile-bar' }, brand(), h('div', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, session.user.role !== 'pendente' ? sino() : null, h('button', { onClick: () => el.classList.toggle('nav-open'), 'aria-label': 'Menu' }, icon('menu'))));
   el.append(sidebar, h('div', { class: 'content' }, mobile, main));
   return el;
 }

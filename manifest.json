@@ -1,1 +1,24 @@
-{"name":"Pedacito · Sistema","short_name":"Pedacito","start_url":"./","display":"standalone","background_color":"#5b6b5e","theme_color":"#5b6b5e","icons":[{"src":"img/icon.svg","sizes":"any","type":"image/svg+xml"}]}
+{
+  "name": "Pedacito · Sistema",
+  "short_name": "Pedacito",
+  "description": "Sistema de gestão da Pedacito Café e Confeitaria",
+  "id": "./",
+  "start_url": "./#/gestao",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "lang": "pt-BR",
+  "background_color": "#f7f4ef",
+  "theme_color": "#2f3a32",
+  "icons": [
+    { "src": "img/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "img/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "img/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "img/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "Atividades", "url": "./#/gestao/atividades", "icons": [{ "src": "img/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Encomendas", "url": "./#/encomenda", "icons": [{ "src": "img/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Formulários da equipe", "url": "./#/", "icons": [{ "src": "img/icon-192.png", "sizes": "192x192" }] }
+  ]
+}
