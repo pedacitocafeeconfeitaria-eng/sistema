@@ -72,6 +72,10 @@ const ROTAS = {
   },
   'GET /api/public/bancos': async () => ({ bancos: await rpc('form_bancos', { p_codigo: codigoEquipe.get() }).catch(() => []) }),
 
+  // Contagem de estoque
+  'GET /api/public/saldos': async (_, q) => ({ itens: await rpc('form_saldos', { p_codigo: codigoEquipe.get(), p_loja: q.loja }) }),
+  'POST /api/public/contagem': async (b) => rpc('form_contagem', { p_codigo: codigoEquipe.get(), p_loja: b.loja, p_nome: b.nome, p_itens: b.itens, p_obs: b.obs || null }),
+
   // Cozinha: produção
   'POST /api/public/producao': async (b) => {
     const itens = [];

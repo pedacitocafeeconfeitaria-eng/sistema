@@ -18,6 +18,7 @@ const PUBLIC = {
   '/balcao': () => import('./pages/form-balcao.js'),
   '/movimentacao': () => import('./pages/form-movimentacao.js'),
   '/lista': () => import('./pages/form-lista.js'),
+  '/contagem': () => import('./pages/form-contagem.js'),
   '/denuncia': () => import('./pages/form-denuncia.js'),
   '/login': () => import('./pages/login.js'),
 };

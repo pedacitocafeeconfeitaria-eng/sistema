@@ -5,6 +5,7 @@ const CARDS = [
   { href: '/cozinha', icon: 'chef', title: 'Cozinha', text: 'Registro de produção e de desperdício da cozinha.' },
   { href: '/balcao', icon: 'clipboard', title: 'Relatório do balcão', text: 'Problemas com produtos, observações do dia e falta de estoque.' },
   { href: '/movimentacao', icon: 'arrows', title: 'Movimentação de estoque', text: 'Entradas (compras) e saídas de insumos.' },
+  { href: '/contagem', icon: 'box', title: 'Contagem de estoque', text: 'Contar o que tem na loja e acertar o saldo do sistema.' },
   { href: '/lista', icon: 'cart', title: 'Lista de compras', text: 'Lista compartilhada entre as lojas.' },
   { href: '/denuncia', icon: 'shield', title: 'Canal de denúncias', text: 'Espaço seguro e confidencial, com anonimato opcional.' },
   { href: '/gestao', icon: 'lock', title: 'Área de gestão', text: 'Painel financeiro, operação, estoque e cadastros (login).' },
