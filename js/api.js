@@ -266,7 +266,7 @@ export async function loadData(name, force = false) {
 export function clearMemo() { memo.clear(); }
 
 // ---------- sessão ----------
-const TODAS = ['dashboard', 'financeiro', 'projecoes', 'operacao', 'estoque', 'compras', 'fichas', 'cadastros', 'rh', 'contratos', 'denuncias', 'config'];
+const TODAS = ['dashboard', 'financeiro', 'projecoes', 'operacao', 'estoque', 'compras', 'notas', 'fichas', 'cadastros', 'rh', 'contratos', 'denuncias', 'config'];
 export async function carregarSessao() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return null;
