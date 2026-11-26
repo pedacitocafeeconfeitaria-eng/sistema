@@ -1,5 +1,11 @@
 // Componentes de interface sem framework.
 
+// Itens vazios (null/false) passados para append/replaceChildren são ignorados, em vez de virar o texto "null".
+for (const m of ['append', 'prepend', 'replaceChildren']) {
+  const orig = Element.prototype[m];
+  Element.prototype[m] = function (...nodes) { return orig.apply(this, nodes.filter((n) => n != null && n !== false && n !== '')); };
+}
+
 // ---------- Criação de elementos ----------
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
