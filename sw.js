@@ -1,6 +1,6 @@
 // Service worker: deixa o sistema instalável como app e abre a tela certa ao tocar num aviso.
 // Os dados vêm sempre do servidor (rede primeiro); o cache só serve de reserva sem internet.
-const CACHE = 'pedacito-v1';
+const CACHE = 'pedacito-v2';
 const BASE = ['./', 'index.html', 'css/app.css', 'img/icon.svg', 'img/icon-192.png', 'manifest.json'];
 
 self.addEventListener('install', (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(BASE)).then(() => self.skipWaiting())); });
@@ -10,7 +10,8 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== self.location.origin) return; // Supabase e CDNs: direto na rede
-  e.respondWith(fetch(e.request).then((r) => { const copia = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, copia)); return r; })
+  // no-cache: sempre confere com o servidor se o arquivo mudou (versão nova aparece na hora)
+  e.respondWith(fetch(e.request, { cache: 'no-cache' }).then((r) => { const copia = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, copia)); return r; })
     .catch(() => caches.match(e.request).then((r) => r || caches.match('index.html'))));
 });
 self.addEventListener('notificationclick', (e) => {

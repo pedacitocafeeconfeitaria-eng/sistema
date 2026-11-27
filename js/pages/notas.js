@@ -203,6 +203,9 @@ export async function render(main) {
         sb.from('lancamentos').select('*').eq('nota_id', n.id).order('vencimento').then(ok),
       ]);
       const insMap = new Map(insumos.map((i) => [i.id, i]));
+      // insumos de receita (fora da lista de estoque) também precisam aparecer pelo nome
+      const faltam = [...new Set(itens.map((i) => i.insumo_id).filter((id) => id && !insMap.has(id)))];
+      if (faltam.length) ok(await sb.from('insumos').select('id,nome,unidade,custo_unitario,categoria,uso').in('id', faltam)).forEach((i) => insMap.set(i.id, i));
       const linhas = itens.map((it) => {
         const ins = insMap.get(it.insumo_id);
         if (it.insumo_id || it.estoque_lancado) {
