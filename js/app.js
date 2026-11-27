@@ -29,6 +29,7 @@ const PUBLIC = {
 // Telas da gestão (com login). area = permissão exigida.
 const GESTAO = [
   { re: /^\/gestao\/?$/, area: 'dashboard', load: () => import('./pages/dashboard.js') },
+  { re: /^\/gestao\/contas-pagar$/, area: 'financeiro', load: () => import('./pages/contas-pagar.js') },
   { re: /^\/gestao\/lancamentos$/, area: 'financeiro', load: () => import('./pages/lancamentos.js') },
   { re: /^\/gestao\/financeiro\/(villa|souza-cruz|grupo)$/, area: 'financeiro', load: () => import('./pages/financeiro.js') },
   { re: /^\/gestao\/dre$/, area: 'financeiro', load: () => import('./pages/dre.js') },
@@ -64,6 +65,7 @@ const NAV = [
     { area: 'cadastros', label: 'Cadastros', icon: 'tag', href: '/gestao/cadastros/produtos', sub: [['Produtos de venda', '/gestao/cadastros/produtos'], ['Insumos', '/gestao/cadastros/insumos']] },
   ]],
   ['Financeiro', [
+    { area: 'financeiro', label: 'Contas a pagar', icon: 'calendar', href: '/gestao/contas-pagar' },
     { area: 'financeiro', label: 'Lançamentos', icon: 'money', href: '/gestao/lancamentos' },
     { area: 'financeiro', label: 'Resultados', icon: 'trend', href: '/gestao/financeiro/grupo', sub: [['Grupo', '/gestao/financeiro/grupo'], ['Villa', '/gestao/financeiro/villa'], ['Souza Cruz', '/gestao/financeiro/souza-cruz']] },
     { area: 'financeiro', label: 'DRE', icon: 'file', href: '/gestao/dre' },
