@@ -1,7 +1,7 @@
 // Balcão: relatório diário (substitui registros-pedacito.lovable.app).
 import { api } from '../api.js';
 import { h, card, field, input, select, textarea, radios, combo, brl, hojeISO, diaSemana, parseNum, icon, alertBox } from '../ui.js';
-import { publicLayout, successCard, LOJAS, TURNOS, TIPOS, lembrar } from './_public.js';
+import { publicLayout, successCard, LOJAS, TURNOS, TIPOS, lembrar, nomeSessao } from './_public.js';
 
 // Produto disponível na loja? (status: Ativo Villa / Ativo Souza Cruz / Ativo Ambos)
 const ativoNaLoja = (status, loja) => {
@@ -15,7 +15,7 @@ export async function render(root) {
   const body = publicLayout(root, { title: 'Relatório Diário', subtitle: 'Confeitaria — controle do balcão' });
   const mem = lembrar.get();
   const novo = () => ({ tipo: '', produto: '', quantidade: '', motivo: '', valor: 0 });
-  const st = { nome: mem.nome || '', data: hojeISO(), loja: mem.loja || '', turno: '', teveProblema: '', problemas: [novo()], observacoes: '', teveFalta: '', produtosFalta: '' };
+  const st = { nome: nomeSessao() || mem.nome || '', data: hojeISO(), loja: mem.loja || '', turno: '', teveProblema: '', problemas: [novo()], observacoes: '', teveFalta: '', produtosFalta: '' };
   let produtos = [];
   const content = h('div', { class: 'form-stack' });
   body.append(content);
@@ -30,7 +30,7 @@ export async function render(root) {
 
     content.replaceChildren(
       card({}, h('div', { class: 'form-section-title' }, 'Identificação'), h('div', { class: 'form-stack' },
-        field('Nome *', input({ value: st.nome, placeholder: 'Seu nome', onInput: (e) => (st.nome = e.target.value) })),
+        field('Nome *', input({ value: st.nome, placeholder: 'Seu nome', readOnly: !!nomeSessao(), onInput: (e) => (st.nome = e.target.value) })),
         h('div', { class: 'form-row' },
           field('Data *', input({ type: 'date', value: st.data, onChange: (e) => { st.data = e.target.value; dia.value = diaSemana(st.data); } })),
           field('Dia da semana', dia)),

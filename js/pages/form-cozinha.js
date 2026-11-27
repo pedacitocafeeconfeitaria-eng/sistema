@@ -1,14 +1,14 @@
 // Cozinha: registro de produção e de desperdício (substitui cozinhapedacito.lovable.app).
 import { api } from '../api.js';
 import { h, card, field, input, select, seg, combo, toast, brl, hojeISO, diaSemana, parseNum, icon, alertBox } from '../ui.js';
-import { publicLayout, successCard, LOJAS, TURNOS, lembrar } from './_public.js';
+import { publicLayout, successCard, LOJAS, TURNOS, lembrar, nomeSessao } from './_public.js';
 
 const CATEGORIAS = ['Doce', 'Salgado', 'Bolo Inteiro', 'Cuca Inteira'];
 
 export async function render(root) {
   const body = publicLayout(root, { title: 'Produção e Desperdício', subtitle: 'Selecione o tipo de registro e preencha os dados.' });
   const mem = lembrar.get();
-  const st = { tipo: '', nome: mem.nome || '', data: hojeISO(), loja: mem.loja || '', turno: '', itens: [] };
+  const st = { tipo: '', nome: nomeSessao() || mem.nome || '', data: hojeISO(), loja: mem.loja || '', turno: '', itens: [] };
   let produtos = [];
   let carregando = false;
 
@@ -53,7 +53,7 @@ export async function render(root) {
     const dia = input({ value: diaSemana(st.data), readOnly: true });
     return card({}, h('div', { class: 'form-section-title' }, 'Identificação'),
       h('div', { class: 'form-stack' },
-        field('Nome', input({ value: st.nome, placeholder: 'Seu nome', autocomplete: 'name', onInput: (e) => (st.nome = e.target.value) })),
+        field('Nome', input({ value: st.nome, placeholder: 'Seu nome', readOnly: !!nomeSessao(), autocomplete: 'name', onInput: (e) => (st.nome = e.target.value) })),
         h('div', { class: 'form-row' },
           field('Data', input({ type: 'date', value: st.data, onChange: (e) => { st.data = e.target.value; dia.value = diaSemana(st.data); } })),
           field('Dia da semana', dia)),

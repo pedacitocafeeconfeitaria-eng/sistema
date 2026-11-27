@@ -1,5 +1,6 @@
 // Início: atalhos para os formulários das lojas e para a gestão.
 import { h, brand, icon } from '../ui.js';
+import { quemBar, nomeSessao } from './_public.js';
 
 const CARDS = [
   { href: '/tarefas', icon: 'check', title: 'Minhas tarefas', text: 'As tarefas do dia que o líder passou para você. Marque quando terminar.' },
@@ -16,7 +17,7 @@ const CARDS = [
 export function render(root) {
   root.append(
     h('header', { class: 'portal-hero' }, h('div', { class: 'inner' },
-      h('div', {}, brand(), h('h1', {}, 'Olá, equipe Pedacito!'), h('p', { style: { opacity: 0.88, margin: '6px 0 0' } }, 'Escolha o que você quer registrar.')))),
+      h('div', {}, brand(), h('h1', {}, nomeSessao() ? `Olá, ${nomeSessao().split(' ')[0]}!` : 'Olá, equipe Pedacito!'), h('p', { style: { opacity: 0.88, margin: '6px 0 0' } }, 'Escolha o que você quer registrar.'), quemBar()))),
     h('div', { class: 'portal' }, h('div', { class: 'portal-grid' }, CARDS.map((c) =>
       h('a', { class: 'portal-card', href: c.href, 'data-link': true },
         h('div', { class: 'portal-icon', style: c.href === '/gestao' ? { background: 'var(--sage-100)', color: 'var(--sage-700)' } : {} }, icon(c.icon)),

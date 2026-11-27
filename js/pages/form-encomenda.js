@@ -1,7 +1,7 @@
 // Encomendas pelo balcão: bolo decorado ou evento (mini croissant, ciabatta, brownie...) e agenda da cozinha.
 import { api } from '../api.js';
 import { h, card, field, input, select, textarea, seg, toast, brl, parseNum, hojeISO, dataBR, diaSemana, loading, icon } from '../ui.js';
-import { publicLayout, successCard, LOJAS, lembrar } from './_public.js';
+import { publicLayout, successCard, LOJAS, lembrar, nomeSessao } from './_public.js';
 import { comprovante, relatorioCozinha, STATUS, linkWhats, textoCliente } from './_encomenda.js';
 
 export async function render(root) {
@@ -22,7 +22,7 @@ export async function render(root) {
       cliente: input({ placeholder: 'Nome do cliente' }), fone: input({ inputMode: 'tel', placeholder: '(47) 9 9999-9999' }),
       data: input({ type: 'date', min: hojeISO() }), hora: input({ type: 'time' }), endereco: input({ placeholder: 'Rua, número, bairro' }),
       sinal: input({ inputMode: 'decimal', placeholder: '0,00' }), obs: textarea({ rows: 2, placeholder: 'Alergias, recados, forma de pagamento...' }),
-      atendente: input({ value: st.atendente, placeholder: 'Seu nome' }), loja: select([{ value: '', label: 'Selecione' }, ...LOJAS]),
+      atendente: input({ value: nomeSessao() || st.atendente, placeholder: 'Seu nome', readOnly: !!nomeSessao() }), loja: select([{ value: '', label: 'Selecione' }, ...LOJAS]),
     };
     f.loja.value = st.loja;
     const bolo = { tamanho: input({ placeholder: 'Ex.: 2 kg, 20 fatias, aro 25' }), massa: input({ placeholder: 'Ex.: chocolate' }), recheio: input({ placeholder: 'Ex.: brigadeiro + morango' }),

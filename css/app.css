@@ -490,3 +490,8 @@ table.dre .dre-total.final td:first-child { background: #2f3a32; }
 }
 .combo-criar { color: var(--coral); font-weight: 700; border-top: 1px solid var(--line); }
 .novo-insumo { margin-top: 8px; padding: 10px 12px; border: 1px dashed var(--sage); border-radius: 10px; background: var(--sage-100); display: flex; flex-direction: column; gap: 8px; }
+
+/* Quem está identificado pelo PIN (formulários da equipe) */
+.quem-bar { display: inline-flex; align-items: center; gap: 12px; margin-top: 12px; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.14); font-size: 13.5px; }
+.quem-bar .link-btn { color: #fff; text-decoration: underline; font-weight: 700; font-size: 13px; }
+.input[readonly] { cursor: default; }
