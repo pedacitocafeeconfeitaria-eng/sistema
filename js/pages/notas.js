@@ -208,7 +208,12 @@ export async function render(main) {
         if (it.insumo_id || it.estoque_lancado) {
           return h('div', { class: 'item-line' }, h('div', { style: { flex: 1 } }, h('b', {}, it.descricao),
             h('div', { class: 'muted', style: { fontSize: '12.5px' } }, `${num(it.quantidade)} ${it.unidade || ''} · ${brl(it.valor_total)}`)),
-            h('div', { style: { textAlign: 'right', fontSize: '13px' } }, ins ? h('span', { class: 'badge ok' }, `→ ${ins.nome}${Number(it.fator) !== 1 ? ` (×${num(it.fator)})` : ''}`) : h('span', { class: 'badge' }, 'Fora do estoque')));
+            h('div', { style: { textAlign: 'right', fontSize: '13px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' } },
+              ins ? h('span', { class: 'badge ok' }, `→ ${ins.nome}${Number(it.fator) !== 1 ? ` (×${num(it.fator)})` : ''}`) : h('span', { class: 'badge' }, 'Fora do estoque'),
+              h('button', { class: 'link-btn', style: { color: 'var(--coral)', fontSize: '12.5px', fontWeight: 700 }, onClick: async () => {
+                if (!confirm(ins ? `Desfazer o vínculo com "${ins.nome}"? A entrada no estoque desse item é retirada e você escolhe o insumo certo.` : 'Voltar este item para "a vincular"?')) return;
+                try { ok(await sb.rpc('desvincular_item_nota', { p_item: it.id })); toast('Vínculo desfeito. Agora escolha o insumo certo.', 'ok'); desenharNota(); carregar(); } catch (e) { toast(e.message, 'error'); }
+              } }, 'Corrigir vínculo')));
         }
         let escolhido = null;
         const fator = input({ inputMode: 'decimal', value: '1', style: { width: '80px' } });
