@@ -2,7 +2,7 @@
 import { sb, clearMemo } from '../api.js';
 import { h, kpi, field, input, select, table, toast, loading, alertBox, icon, brl, num, dataBR, combo } from '../ui.js';
 import { pageHeader } from './_painel.js';
-import { drawer, ok } from '../crud.js';
+import { drawer, ok, abrirArquivo } from '../crud.js';
 import { lerNFe } from '../nfe.js';
 
 const LOJAS = [{ value: 'VILLA', label: 'Villa Schlosser' }, { value: 'SOUZA_CRUZ', label: 'Souza Cruz' }];
@@ -14,7 +14,7 @@ export async function render(main) {
   const area = h('div', {}, loading('Carregando notas...'));
   main.append(area);
   const st = { status: '', loja: '', q: '' };
-  let notas = [], forn = new Map(), insumos = [];
+  let notas = [], forn = new Map(), insumos = [], fotos = [];
 
   async function carregar() {
     area.replaceChildren(loading('Carregando notas...'));
@@ -25,6 +25,10 @@ export async function render(main) {
         sb.from('insumos').select('id,nome,unidade,custo_unitario,categoria,uso').eq('ativo', true).neq('uso', 'receita').order('nome').then(ok),
       ]);
       notas = n; forn = new Map(f.map((x) => [x.id, x.nome])); insumos = i;
+      // Fila de fotos: as que aguardam leitura, com erro, e as lançadas nos últimos 7 dias
+      const desde = new Date(Date.now() - 7 * 864e5).toISOString();
+      const rf = await sb.from('notas_fotos').select('*').or(`status.in.(AGUARDANDO,ERRO),enviado_em.gte."${desde}"`).order('enviado_em', { ascending: false }).limit(50);
+      fotos = rf.error ? [] : rf.data;
       desenhar();
     } catch (e) { area.replaceChildren(alertBox(e.message)); }
   }
@@ -49,7 +53,9 @@ export async function render(main) {
         field('Loja', sel([{ value: '', label: 'Todas' }, ...LOJAS], 'loja')),
         field('Situação', sel([{ value: '', label: 'Todas' }, { value: 'pend', label: 'Com itens para vincular' }, { value: 'ok', label: 'Completas' }], 'status')),
         h('div', { style: { marginLeft: 'auto', display: 'flex', gap: '8px' } }, arquivo,
-          h('button', { class: 'btn', onClick: () => arquivo.click() }, icon('plus'), 'Importar XML'))),
+          h('button', { class: 'btn', onClick: () => enviarFoto() }, icon('camera'), 'Foto da nota'),
+          h('button', { class: 'btn ghost', onClick: () => arquivo.click() }, icon('plus'), 'Importar XML'))),
+      fotos.length ? quadroFotos() : null,
       h('div', { class: 'card', style: { padding: '6px 10px' } }, table([
         { label: 'Emissão', render: (n) => dataBR(n.data_emissao || n.data_entrada) },
         { label: 'Nota', render: (n) => h('button', { class: 'link-btn', onClick: () => abrir(n) }, h('b', {}, `${n.tipo_doc === 'NF-e' ? 'NF' : n.tipo_doc} ${n.numero || '—'}`)) },
@@ -61,7 +67,67 @@ export async function render(main) {
         { label: 'Situação', render: (n) => { const p = pend(n); return h('span', { class: `badge ${p ? 'warn' : 'ok'}` }, p ? `${p} p/ vincular` : 'Completa'); } },
         { label: 'Raffinato', render: (n) => h('span', { class: `badge ${n.lancada_raffinato ? 'ok' : ''}` }, n.lancada_raffinato ? 'Lançada' : 'Pendente') },
         { label: 'Origem', render: (n) => ORIGEM[n.origem] || n.origem || '—' },
-      ], vis, { maxHeight: false, emptyText: 'Nenhuma nota ainda. Importe o XML que o fornecedor manda por e-mail, ou mande a foto da nota para o Claude.' })));
+      ], vis, { maxHeight: false, emptyText: 'Nenhuma nota ainda. Importe o XML que o fornecedor manda por e-mail, ou use "Foto da nota".' })));
+  }
+
+  // ---------- Fotos de notas: a equipe envia, o Claude lê e lança ----------
+  const FOTO_STATUS = { AGUARDANDO: ['Aguardando leitura', 'warn'], LANCADA: ['Lançada', 'ok'], DUPLICADA: ['Já estava lançada', ''], ERRO: ['Precisa de atenção', 'error'] };
+  function quadroFotos() {
+    return h('div', { class: 'card', style: { padding: '10px 14px', marginBottom: '14px' } },
+      h('div', { class: 'form-section-title', style: { marginTop: 0 } }, 'Fotos de notas enviadas'),
+      h('p', { class: 'muted', style: { margin: '0 0 8px', fontSize: '12.5px' } }, 'O Claude lê as fotos e lança a nota com estoque e contas a pagar (na importação diária ou quando você pedir).'),
+      table([
+        { label: 'Enviada', render: (f) => `${dataBR(f.enviado_em)} ${f.enviado_em.slice(11, 16)}` },
+        { label: 'Loja', render: (f) => lojaNome(f.loja) },
+        { label: 'Fotos', render: (f) => h('div', { style: { display: 'flex', gap: '6px' } }, ...f.arquivos.map((a, i) =>
+          h('button', { class: 'link-btn', onClick: () => abrirArquivo('notas', a) }, f.arquivos.length > 1 ? `pág. ${i + 1}` : 'ver'))) },
+        { label: 'Situação', render: (f) => { const [t, c] = FOTO_STATUS[f.status] || [f.status, '']; return h('span', { class: `badge ${c}`, title: f.mensagem || '' }, t); } },
+        { label: 'Observação', render: (f) => f.mensagem || f.observacao || '' },
+        { label: '', render: (f) => {
+          if (f.nota_id) { const n = notas.find((x) => x.id === f.nota_id); return n ? h('button', { class: 'link-btn', onClick: () => abrir(n) }, `NF ${n.numero}`) : ''; }
+          if (f.status !== 'AGUARDANDO' && f.status !== 'ERRO') return '';
+          return h('button', { class: 'btn ghost small', title: 'Apagar esta foto', onClick: async () => {
+            if (!confirm('Apagar esta foto da fila?')) return;
+            try { await sb.storage.from('notas').remove(f.arquivos); ok(await sb.from('notas_fotos').delete().eq('id', f.id)); toast('Foto apagada.', 'ok'); carregar(); } catch (e) { toast(e.message, 'error'); }
+          } }, icon('trash')); }, right: true },
+      ], fotos, { maxHeight: false }));
+  }
+
+  function enviarFoto() {
+    let fechar; let arquivos = [];
+    const lista = h('div', { class: 'muted', style: { fontSize: '13px' } }, 'Nenhuma foto ainda.');
+    const mostra = () => { lista.replaceChildren(...(arquivos.length ? arquivos.map((f, i) => h('div', {}, `Página ${i + 1}: ${f.name}`)) : ['Nenhuma foto ainda.'])); };
+    const camera = h('input', { type: 'file', accept: 'image/*', capture: 'environment', class: 'hidden', onChange: (e) => { arquivos.push(...e.target.files); e.target.value = ''; mostra(); } });
+    const galeria = h('input', { type: 'file', accept: 'image/*,.pdf', multiple: true, class: 'hidden', onChange: (e) => { arquivos.push(...e.target.files); e.target.value = ''; mostra(); } });
+    const loja = select([{ value: '', label: 'Não sei (o Claude descobre pelo CNPJ)' }, ...LOJAS]);
+    const obs = input({ placeholder: 'Ex.: chegou com 1 caixa faltando' });
+    const enviar = h('button', { class: 'btn block', onClick: async () => {
+      if (!arquivos.length) return toast('Tire a foto da nota primeiro.', 'error');
+      enviar.disabled = true; enviar.textContent = 'Enviando...';
+      try {
+        const caminhos = [];
+        for (const f of arquivos) {
+          const img = await reduzirFoto(f);
+          const ext = img.type === 'application/pdf' ? 'pdf' : 'jpg';
+          const path = `fotos/${new Date().toISOString().slice(0, 10)}/${Date.now()}_${caminhos.length + 1}.${ext}`;
+          ok(await sb.storage.from('notas').upload(path, img, { contentType: img.type || 'image/jpeg' }));
+          caminhos.push(path);
+        }
+        ok(await sb.from('notas_fotos').insert({ arquivos: caminhos, loja: loja.value || null, observacao: obs.value.trim() || null }));
+        toast('Foto enviada. O Claude vai ler e lançar a nota.', 'ok'); fechar(); carregar();
+      } catch (e) { toast(e.message, 'error'); enviar.disabled = false; enviar.textContent = 'Enviar para lançamento'; }
+    } }, 'Enviar para lançamento');
+    const corpo = h('div', { class: 'form-stack' },
+      h('p', { style: { margin: 0 } }, 'Fotografe a nota inteira, bem iluminada e sem cortar as bordas. Se tiver mais de uma página, tire uma foto de cada.'),
+      camera, galeria,
+      h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
+        h('button', { class: 'btn', onClick: () => camera.click() }, icon('camera'), arquivos.length ? 'Tirar mais uma' : 'Tirar foto'),
+        h('button', { class: 'btn ghost', onClick: () => galeria.click() }, icon('file'), 'Escolher da galeria')),
+      lista,
+      field('Loja', loja),
+      field('Observação (opcional)', obs),
+      enviar);
+    fechar = drawer('Foto da nota fiscal', corpo);
   }
 
   async function importarXML(arquivos) {
@@ -139,6 +205,7 @@ export async function render(main) {
         h('div', { class: 'kv-list' },
           ...[['Emissão', dataBR(n.data_emissao)], ['Loja', lojaNome(n.loja)], ['Valor total', brl(n.valor_total)], ['Origem', ORIGEM[n.origem] || n.origem], ['Chave', n.chave_acesso ? `…${n.chave_acesso.slice(-12)}` : '—'], ['Série', n.serie || '—']]
             .map(([k, v]) => h('div', { class: 'kv' }, h('span', { class: 'muted' }, k), h('span', {}, v)))),
+        n.arquivo_url ? h('button', { class: 'btn ghost small', style: { alignSelf: 'flex-start' }, onClick: () => abrirArquivo('notas', n.arquivo_url) }, icon('camera'), 'Ver foto da nota') : null,
         ...quadroImpostos(n),
         h('div', { class: 'form-section-title' }, `Itens (${itens.length})`),
         itens.some((i) => !i.insumo_id && !i.estoque_lancado) ? h('div', { class: 'alert warn' }, 'Diga qual insumo é cada item. Use o "1 unidade = quantos?" quando a nota vem em caixa ou fardo (ex.: fardo com 5 kg → 5).') : null,
@@ -157,6 +224,20 @@ export async function render(main) {
 }
 
 const temImpostos = (n) => n.impostos_informados === true;
+
+// Diminui a foto do celular (até 2400px, JPEG) para enviar mais rápido; mantém legível para a leitura.
+async function reduzirFoto(file) {
+  if (!file.type.startsWith('image/')) return file;
+  try {
+    const bmp = await createImageBitmap(file);
+    const escala = Math.min(1, 2400 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(bmp.width * escala); c.height = Math.round(bmp.height * escala);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.85));
+    return blob && blob.size < file.size ? blob : file;
+  } catch { return file; }
+}
 
 // Impostos destacados no XML: ICMS, PIS, COFINS e IBS/CBS já estão dentro do preço; ST, FCP-ST e IPI vêm somados por cima.
 function quadroImpostos(n) {
