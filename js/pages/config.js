@@ -7,7 +7,7 @@ export const MODULOS = [
   ['dashboard', 'Dashboard'], ['estoque', 'Estoque'], ['desperdicio', 'Desperdício'], ['producao', 'Produção'],
   ['balcao', 'Relatório do balcão'], ['compras', 'Compras e lista'], ['notas', 'Notas fiscais'], ['cadastros', 'Cadastros'],
   ['fichas', 'Fichas técnicas'], ['encomendas', 'Encomendas e eventos'], ['faturamento', 'Faturamento'],
-  ['financeiro', 'Financeiro'], ['rh', 'Gestão de pessoas'], ['contratos', 'Contratos'], ['denuncias', 'Denúncias'], ['config', 'Configurações'],
+  ['financeiro', 'Financeiro'], ['rh', 'Gestão de pessoas'], ['tarefas', 'Tarefas da equipe'], ['contratos', 'Contratos'], ['denuncias', 'Denúncias'], ['config', 'Configurações'],
 ];
 
 const ok = ({ data, error }) => { if (error) throw new Error(error.message); return data; };

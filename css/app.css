@@ -392,3 +392,21 @@ table.dre .dre-total.final td:first-child { background: #2f3a32; }
   .dre-total.final td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   @page { size: A4 landscape; margin: 10mm; }
 }
+/* tarefas */
+.tarefas-resumo { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; font-size: 14px; }
+.tarefas-resumo .bar-track { margin-top: 8px; }
+.card.tarefa { padding: 14px; }
+.card.tarefa.feita { opacity: .6; }
+.card.tarefa.feita .tarefa-titulo { text-decoration: line-through; }
+.card.tarefa.atrasada:not(.feita) { border-left: 4px solid var(--expense); }
+.tarefa-check { width: 34px; height: 34px; flex-shrink: 0; border-radius: 50%; border: 2.5px solid var(--sage); background: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; }
+.feita .tarefa-check { background: var(--revenue); border-color: var(--revenue); }
+.tarefa-check svg, .tarefa-bolinha svg { width: 18px; height: 18px; }
+.tarefa-bolinha { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--line); flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; }
+.tarefa-bolinha.ok { background: var(--revenue); border-color: var(--revenue); }
+.tarefa-bolinha.atrasada { border-color: var(--expense); background: var(--expense-100); }
+.tarefa-linha.feita b { text-decoration: line-through; color: var(--muted); }
+.dias-semana { display: flex; gap: 6px; flex-wrap: wrap; }
+.dias-semana button { border: 1px solid var(--line); background: var(--paper); border-radius: 8px; padding: 7px 10px; font: inherit; font-weight: 700; cursor: pointer; }
+.dias-semana button.on { background: var(--sage); color: #fff; border-color: var(--sage); }
+.btn.danger { color: var(--expense); }

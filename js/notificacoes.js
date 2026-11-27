@@ -7,7 +7,7 @@ let naoLidas = 0; let lidoAte = null; let canal = null; let userId = null;
 const avisar = () => ouvintes.forEach((f) => f(naoLidas));
 
 export const MODULOS = { producao: 'Produção', desperdicio: 'Desperdício', balcao: 'Balcão', estoque: 'Estoque', compras: 'Compras', notas: 'Notas fiscais',
-  financeiro: 'Financeiro', rh: 'Pessoas', denuncias: 'Denúncias', config: 'Sistema', encomendas: 'Encomendas' };
+  financeiro: 'Financeiro', rh: 'Pessoas', denuncias: 'Denúncias', config: 'Sistema', encomendas: 'Encomendas', tarefas: 'Tarefas' };
 
 export async function iniciarNotificacoes() {
   const { data: { session } } = await sb.auth.getSession();

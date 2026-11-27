@@ -2,6 +2,7 @@
 import { h, brand, icon } from '../ui.js';
 
 const CARDS = [
+  { href: '/tarefas', icon: 'check', title: 'Minhas tarefas', text: 'As tarefas do dia que o líder passou para você. Marque quando terminar.' },
   { href: '/cozinha', icon: 'chef', title: 'Cozinha', text: 'Registro de produção e de desperdício da cozinha.' },
   { href: '/balcao', icon: 'clipboard', title: 'Relatório do balcão', text: 'Problemas com produtos, observações do dia e falta de estoque.' },
   { href: '/encomenda', icon: 'cake', title: 'Encomendas', text: 'Bolos decorados e eventos: anotar pedido, comprovante e agenda da cozinha.' },

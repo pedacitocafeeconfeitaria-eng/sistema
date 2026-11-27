@@ -21,6 +21,7 @@ const PUBLIC = {
   '/lista': () => import('./pages/form-lista.js'),
   '/contagem': () => import('./pages/form-contagem.js'),
   '/encomenda': () => import('./pages/form-encomenda.js'),
+  '/tarefas': () => import('./pages/form-tarefas.js'),
   '/denuncia': () => import('./pages/form-denuncia.js'),
   '/login': () => import('./pages/login.js'),
 };
@@ -42,6 +43,7 @@ const GESTAO = [
   { re: /^\/gestao\/fichas$/, area: 'fichas', load: () => import('./pages/fichas.js') },
   { re: /^\/gestao\/cadastros\/(produtos|insumos)$/, area: 'cadastros', load: () => import('./pages/cadastros.js') },
   { re: /^\/gestao\/pessoas(?:\/(equipe|ocorrencias|ferias|documentos))?$/, area: 'rh', load: () => import('./pages/pessoas.js') },
+  { re: /^\/gestao\/tarefas$/, area: 'tarefas', load: () => import('./pages/tarefas.js') },
   { re: /^\/gestao\/contratos$/, area: 'contratos', load: () => import('./pages/contratos.js') },
   { re: /^\/gestao\/denuncias$/, area: 'denuncias', load: () => import('./pages/denuncias.js') },
   { re: /^\/gestao\/config$/, area: 'config', load: () => import('./pages/config.js') },
@@ -69,6 +71,7 @@ const NAV = [
   ]],
   ['Pessoas e documentos', [
     { area: 'rh', label: 'Gestão de pessoas', icon: 'users', href: '/gestao/pessoas/equipe', sub: [['Equipe', '/gestao/pessoas/equipe'], ['Ocorrências', '/gestao/pessoas/ocorrencias'], ['Férias', '/gestao/pessoas/ferias'], ['Documentos', '/gestao/pessoas/documentos']] },
+    { area: 'tarefas', label: 'Tarefas da equipe', icon: 'check', href: '/gestao/tarefas' },
     { area: 'contratos', label: 'Contratos', icon: 'file', href: '/gestao/contratos' },
     { area: 'denuncias', label: 'Denúncias', icon: 'shield', href: '/gestao/denuncias' },
   ]],
