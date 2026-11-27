@@ -69,14 +69,14 @@ export async function render(main, { session }) {
       if (novo && comPin < func.length && !confirm(`${func.length - comPin} colaborador(es) ainda estão sem PIN e não vão conseguir usar os formulários. Exigir PIN mesmo assim?`)) { e.target.checked = false; return; }
       try { ok(await sb.from('config').update({ valor: novo }).eq('chave', 'exigir_pin')); toast(novo ? 'PIN obrigatório nos formulários.' : 'PIN opcional.', 'ok'); carregar(); } catch (ex) { toast(ex.message, 'error'); e.target.checked = !novo; }
     } });
-    return card({ title: 'PIN da equipe', desc: 'Cada colaborador entra nos formulários com o próprio PIN (vale no aparelho até o fim do dia). Assim o sistema sabe quem fez cada tarefa, contagem, produção e registro. O PIN fica guardado de forma que ninguém consegue ler — nem a gestão.' },
+    return card({ title: 'PIN da equipe', desc: 'Cada colaborador entra nos formulários digitando só o próprio PIN (vale no aparelho até o fim do dia). Assim o sistema sabe quem fez cada tarefa, contagem, produção e registro. Cada PIN é de uma pessoa só, e fica guardado de forma que ninguém consegue ler — nem a gestão. Prefira 6 números e evite datas de aniversário.' },
       h('div', { style: { display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '12px' } },
         h('span', { class: `badge ${comPin === func.length ? 'ok' : 'warn'}` }, `${comPin} de ${func.length} com PIN`),
         h('label', { class: 'check-inline' }, chave, 'Exigir PIN nos formulários'),
         !exigir ? h('span', { class: 'muted', style: { fontSize: '12.5px' } }, 'Enquanto estiver desligado, quem não tem PIN pode continuar sem.') : null),
       table([
         { label: 'Colaborador', render: (f) => h('div', {}, h('b', {}, f.nome), h('div', { class: 'muted', style: { fontSize: '12px' } }, [lojaNome(f.loja), f.cargo].filter(Boolean).join(' · '))) },
-        { label: 'PIN', render: (f) => { const p = pm.get(f.id); return p?.bloqueado ? h('span', { class: 'badge danger' }, 'Bloqueado (erros)') : p?.tem_pin ? h('span', { class: 'badge ok' }, `Desde ${dt(p.definido_em)}`) : h('span', { class: 'badge warn' }, 'Sem PIN'); } },
+        { label: 'PIN', render: (f) => { const p = pm.get(f.id); return p?.tem_pin ? h('span', { class: 'badge ok' }, `Desde ${dt(p.definido_em)}`) : h('span', { class: 'badge warn' }, 'Sem PIN'); } },
         { label: 'Último acesso', render: (f) => dt(pm.get(f.id)?.ultimo_acesso) || '—' },
         { label: '', render: (f) => h('div', { class: 'row-actions' },
           h('button', { class: 'btn small', onClick: () => definirPin(f) }, pm.get(f.id)?.tem_pin ? 'Trocar PIN' : 'Definir PIN'),

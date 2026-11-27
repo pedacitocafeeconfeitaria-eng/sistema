@@ -77,7 +77,7 @@ const ROTAS = {
   },
   // PIN pessoal
   'POST /api/public/entrar': async (b) => {
-    const r = await rpc('equipe_entrar', { p_codigo: codigoEquipe.get(), p_funcionario: Number(b.funcionario_id), p_pin: String(b.pin || '') });
+    const r = await rpc('equipe_entrar', { p_codigo: codigoEquipe.get(), p_pin: String(b.pin || '') });
     if (!r.ok) throw erro(r.erro);
     const s = { token: r.token, funcionario_id: r.funcionario_id, nome: r.nome, loja: r.loja, expira: r.expira };
     sessaoEquipe.set(s);

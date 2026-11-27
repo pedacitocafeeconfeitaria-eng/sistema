@@ -7,7 +7,7 @@ export function quemBar() {
   const s = sessaoEquipe.get();
   if (!s) return null;
   return h('div', { class: 'quem-bar' }, h('span', {}, 'Você: ', h('b', {}, s.nome)),
-    h('button', { class: 'link-btn', onClick: async () => { await api.post('/api/public/sair').catch(() => {}); window.dispatchEvent(new Event('pedacito:pin')); } }, 'Trocar pessoa'));
+    h('button', { class: 'link-btn', onClick: async () => { await api.post('/api/public/sair').catch(() => {}); window.dispatchEvent(new Event('pedacito:pin')); } }, 'Não é você? Trocar'));
 }
 export const nomeSessao = () => sessaoEquipe.get()?.nome || '';
 

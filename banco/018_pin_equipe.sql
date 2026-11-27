@@ -1,7 +1,7 @@
 -- =====================================================================
 -- PIN pessoal da equipe.
 -- O aparelho continua precisando do código da equipe (uma vez). Além dele,
--- cada colaborador se identifica com nome + PIN; o sistema abre uma sessão
+-- cada colaborador se identifica só com o PIN (único por pessoa); o sistema abre uma sessão
 -- que vale até as 4h do dia seguinte. Os formulários mandam o código como
 -- "CODIGO|TOKEN", então as funções form_* não mudam de assinatura: a
 -- _codigo_ok confere a sessão e guarda quem é, e os gatilhos abaixo gravam
@@ -13,9 +13,7 @@ create extension if not exists pgcrypto with schema extensions;
 create table if not exists funcionario_pins (
   funcionario_id  bigint primary key references funcionarios(id) on delete cascade,
   pin_hash        text not null,
-  definido_em     timestamptz not null default now(),
-  tentativas      int not null default 0,
-  bloqueado_ate   timestamptz
+  definido_em     timestamptz not null default now()
 );
 alter table funcionario_pins enable row level security;
 
@@ -26,6 +24,15 @@ create table if not exists sessoes_equipe (
   expira_em       timestamptz not null
 );
 alter table sessoes_equipe enable row level security;
+
+-- Erros de PIN por conexão (o IP fica só como hash). Bloqueia tentativas de adivinhar.
+create table if not exists pin_tentativas (
+  origem        text primary key,
+  erros         int not null default 0,
+  ultimo_erro   timestamptz,
+  bloqueado_ate timestamptz
+);
+alter table pin_tentativas enable row level security;
 create index if not exists sessoes_equipe_func on sessoes_equipe (funcionario_id);
 
 insert into config (chave, valor) values ('exigir_pin', 'false'::jsonb) on conflict (chave) do nothing;
@@ -81,33 +88,44 @@ begin
   return jsonb_build_object('exigir_pin', coalesce((select (valor #>> '{}')::boolean from config where chave = 'exigir_pin'), false));
 end $$;
 
--- Entrar com nome + PIN. 5 erros seguidos bloqueiam aquela pessoa por 15 minutos.
-create or replace function equipe_entrar(p_codigo text, p_funcionario bigint, p_pin text) returns jsonb
+-- De onde vem o pedido (hash do IP informado pelo Supabase)
+create or replace function _origem_pedido() returns text language sql stable as $$
+  select md5(coalesce(
+    nullif(current_setting('request.headers', true), '')::json->>'cf-connecting-ip',
+    split_part(nullif(current_setting('request.headers', true), '')::json->>'x-forwarded-for', ',', 1),
+    'desconhecido'));
+$$;
+
+-- Entrar só com o PIN. 8 erros seguidos da mesma conexão bloqueiam novas tentativas por 10 minutos.
+create or replace function equipe_entrar(p_codigo text, p_pin text) returns jsonb
 language plpgsql security definer set search_path = public, extensions as $$
-declare f funcionarios; p funcionario_pins; v_tok uuid; v_exp timestamptz;
+declare v_or text := _origem_pedido(); t pin_tentativas; v_id bigint; v_nome text; v_loja text; v_tok uuid; v_exp timestamptz; v_erros int;
 begin
   perform _codigo_base_ok(p_codigo);
-  select * into f from funcionarios where id = p_funcionario and ativo;
-  if f.id is null then raise exception 'Colaborador não encontrado.'; end if;
-  select * into p from funcionario_pins where funcionario_id = f.id for update;
-  if p.funcionario_id is null then raise exception 'Você ainda não tem PIN. Peça para a gestão cadastrar.'; end if;
-  if p.bloqueado_ate > now() then
-    raise exception 'Muitas tentativas erradas. Tente de novo em % minuto(s).', ceil(extract(epoch from p.bloqueado_ate - now()) / 60)::int;
+  select * into t from pin_tentativas where origem = v_or;
+  if t.bloqueado_ate > now() then
+    raise exception 'Muitas tentativas erradas neste local. Tente de novo em % minuto(s).', ceil(extract(epoch from t.bloqueado_ate - now()) / 60)::int;
   end if;
-  if p.pin_hash <> crypt(coalesce(p_pin, ''), p.pin_hash) then
-    -- não usa raise aqui: o erro desfaria a contagem de tentativas
-    update funcionario_pins set tentativas = case when tentativas + 1 >= 5 then 0 else tentativas + 1 end,
-      bloqueado_ate = case when tentativas + 1 >= 5 then now() + interval '15 minutes' end
-     where funcionario_id = f.id;
-    return jsonb_build_object('ok', false, 'erro', case when p.tentativas + 1 >= 5
-      then 'PIN incorreto. Acesso bloqueado por 15 minutos.' else format('PIN incorreto. Restam %s tentativa(s).', 5 - (p.tentativas + 1)) end);
+  if coalesce(p_pin, '') ~ '^[0-9]{4,6}$' then
+    select f.id, f.nome, f.loja into v_id, v_nome, v_loja
+      from funcionario_pins p join funcionarios f on f.id = p.funcionario_id
+     where f.ativo and p.pin_hash = crypt(p_pin, p.pin_hash) limit 1;
   end if;
-  update funcionario_pins set tentativas = 0, bloqueado_ate = null where funcionario_id = f.id;
+  if v_id is null then
+    -- não usa raise aqui: o erro desfaria a contagem
+    v_erros := case when t.ultimo_erro > now() - interval '15 minutes' then t.erros + 1 else 1 end;
+    insert into pin_tentativas (origem, erros, ultimo_erro, bloqueado_ate)
+    values (v_or, case when v_erros >= 8 then 0 else v_erros end, now(), case when v_erros >= 8 then now() + interval '10 minutes' end)
+    on conflict (origem) do update set erros = excluded.erros, ultimo_erro = excluded.ultimo_erro, bloqueado_ate = excluded.bloqueado_ate;
+    return jsonb_build_object('ok', false, 'erro', case when v_erros >= 8 then 'PIN incorreto. Novas tentativas bloqueadas por 10 minutos.'
+      when v_erros >= 5 then format('PIN incorreto. Restam %s tentativa(s) antes de bloquear.', 8 - v_erros) else 'PIN incorreto.' end);
+  end if;
+  delete from pin_tentativas where origem = v_or;
   v_exp := ((date_trunc('day', (now() at time zone 'America/Sao_Paulo') - interval '4 hours') + interval '1 day 4 hours') at time zone 'America/Sao_Paulo');
   delete from sessoes_equipe where expira_em < now() - interval '7 days';
-  insert into sessoes_equipe (funcionario_id, expira_em) values (f.id, v_exp) returning token into v_tok;
-  return jsonb_build_object('ok', true, 'token', v_tok, 'funcionario_id', f.id, 'nome', f.nome, 'expira', v_exp,
-    'loja', case f.loja when 'VILLA' then 'Villa Schlosser' when 'SOUZA_CRUZ' then 'Souza Cruz' end);
+  insert into sessoes_equipe (funcionario_id, expira_em) values (v_id, v_exp) returning token into v_tok;
+  return jsonb_build_object('ok', true, 'token', v_tok, 'funcionario_id', v_id, 'nome', v_nome, 'expira', v_exp,
+    'loja', case v_loja when 'VILLA' then 'Villa Schlosser' when 'SOUZA_CRUZ' then 'Souza Cruz' end);
 end $$;
 
 create or replace function equipe_sair(p_token text) returns void
@@ -122,8 +140,12 @@ begin
   if not eu_admin() and not posso('rh', true) then raise exception 'Sem permissão para definir PIN'; end if;
   if coalesce(p_pin, '') !~ '^[0-9]{4,6}$' then raise exception 'O PIN deve ter de 4 a 6 números.'; end if;
   if p_pin ~ '^(.)\1+$' or p_pin in ('1234', '12345', '123456', '4321', '654321') then raise exception 'PIN muito fácil. Escolha outro.'; end if;
+  if exists (select 1 from funcionario_pins p join funcionarios f on f.id = p.funcionario_id
+              where f.ativo and p.funcionario_id <> p_funcionario and p.pin_hash = crypt(p_pin, p.pin_hash)) then
+    raise exception 'Este PIN já é de outro colaborador. Escolha outro.';
+  end if;
   insert into funcionario_pins (funcionario_id, pin_hash) values (p_funcionario, crypt(p_pin, gen_salt('bf', 8)))
-  on conflict (funcionario_id) do update set pin_hash = excluded.pin_hash, definido_em = now(), tentativas = 0, bloqueado_ate = null;
+  on conflict (funcionario_id) do update set pin_hash = excluded.pin_hash, definido_em = now();
   delete from sessoes_equipe where funcionario_id = p_funcionario;  -- quem estava logado com o PIN antigo precisa entrar de novo
 end $$;
 
@@ -139,7 +161,7 @@ create or replace function pins_equipe() returns table (funcionario_id bigint, t
 language plpgsql stable security definer set search_path = public as $$
 begin
   if not eu_admin() and not posso('rh') then raise exception 'Sem permissão'; end if;
-  return query select f.id, p.funcionario_id is not null, p.definido_em, coalesce(p.bloqueado_ate > now(), false),
+  return query select f.id, p.funcionario_id is not null, p.definido_em, false,
     (select max(s.criado_em) from sessoes_equipe s where s.funcionario_id = f.id)
     from funcionarios f left join funcionario_pins p on p.funcionario_id = f.id where f.ativo;
 end $$;
@@ -181,8 +203,8 @@ begin
   end loop;
 end $$;
 
-revoke all on function _codigo_base_ok(text), _carimbar_quem(), definir_pin(bigint, text), remover_pin(bigint), pins_equipe() from public, anon;
-grant execute on function form_equipe(text, text), form_config_equipe(text), equipe_entrar(text, bigint, text), equipe_sair(text),
+revoke all on function _origem_pedido(), _codigo_base_ok(text), _carimbar_quem(), definir_pin(bigint, text), remover_pin(bigint), pins_equipe() from public, anon;
+grant execute on function form_equipe(text, text), form_config_equipe(text), equipe_entrar(text, text), equipe_sair(text),
   form_minhas_tarefas(text, text, bigint) to anon, authenticated;
 grant execute on function definir_pin(bigint, text), remover_pin(bigint), pins_equipe() to authenticated;
 
