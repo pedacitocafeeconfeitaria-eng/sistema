@@ -193,9 +193,13 @@ function shell(path, main) {
       h('div', { class: 'avatar' }, iniciais),
       h('div', { style: { minWidth: 0, flex: 1 } }, h('div', { class: 'who' }, session.user.username), h('div', { class: 'role' }, session.user.label)),
       h('button', { class: 'icon-btn light', title: 'Sair', onClick: logout }, icon('logout'))));
-  sidebar.addEventListener('click', (e) => { if (e.target.closest('a')) el.classList.remove('nav-open'); });
-  const mobile = h('div', { class: 'mobile-bar' }, brand(), h('div', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, session.user.role !== 'pendente' ? sino() : null, h('button', { onClick: () => el.classList.toggle('nav-open'), 'aria-label': 'Menu' }, icon('menu'))));
-  el.append(sidebar, h('div', { class: 'content' }, mobile, main));
+  const menu = (abrir) => { el.classList.toggle('nav-open', abrir); document.body.classList.toggle('menu-aberto', abrir); };
+  sidebar.addEventListener('click', (e) => { if (e.target.closest('a')) menu(false); });
+  const mobile = h('div', { class: 'mobile-bar' }, brand(), h('div', { style: { display: 'flex', gap: '6px', alignItems: 'center' } }, session.user.role !== 'pendente' ? sino() : null, h('button', { onClick: (e) => { e.stopPropagation(); menu(!el.classList.contains('nav-open')); }, 'aria-label': 'Menu' }, icon('menu'))));
+  // com o menu aberto no celular, tocar fora dele fecha
+  const conteudo = h('div', { class: 'content' }, mobile, main);
+  conteudo.addEventListener('click', (e) => { if (el.classList.contains('nav-open')) { e.preventDefault(); e.stopPropagation(); menu(false); } }, true);
+  el.append(sidebar, conteudo);
   return el;
 }
 

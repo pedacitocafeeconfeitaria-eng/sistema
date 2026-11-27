@@ -129,11 +129,12 @@ export function barList(items, { fmt = brl, color = 'var(--sage)', limit = 10, e
 
 export function table(columns, rows, { maxHeight = true, emptyText } = {}) {
   if (!rows.length) return empty(emptyText);
-  const t = h('table', { class: 'tbl' },
+  // 'cards': no celular cada linha vira um cartão (rótulo à esquerda, valor à direita)
+  const t = h('table', { class: 'tbl cards' },
     h('thead', {}, h('tr', {}, columns.map((c) => h('th', { class: c.right ? 'r' : '' }, c.label)))),
     h('tbody', {}, rows.map((r) => h('tr', {}, columns.map((c) => {
       const v = c.render ? c.render(r) : r[c.key];
-      return h('td', { class: c.right ? 'r' : '' }, v instanceof Node ? v : (v ?? '—'));
+      return h('td', { class: c.right ? 'r' : '', 'data-label': c.label || '' }, v instanceof Node ? v : (v ?? '—'));
     })))));
   return h('div', { class: `table-wrap${maxHeight ? ' scroll-y' : ''}` }, t);
 }

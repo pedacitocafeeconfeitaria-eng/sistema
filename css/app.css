@@ -410,3 +410,81 @@ table.dre .dre-total.final td:first-child { background: #2f3a32; }
 .dias-semana button { border: 1px solid var(--line); background: var(--paper); border-radius: 8px; padding: 7px 10px; font: inherit; font-weight: 700; cursor: pointer; }
 .dias-semana button.on { background: var(--sage); color: #fff; border-color: var(--sage); }
 .btn.danger { color: var(--expense); }
+
+/* =====================================================================
+   Celular (v4). Fica no fim do arquivo de propósito: o tema v2 acima
+   redefine .shell e .main depois dos @media antigos e anulava o layout
+   de celular (a coluna do menu continuava ocupando 248px).
+   ===================================================================== */
+@media (max-width: 900px) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .sidebar { width: min(290px, 86vw); height: 100vh; height: 100dvh; padding-top: env(safe-area-inset-top); }
+  .content { min-width: 0; width: 100%; }
+  .main { padding: 16px 14px calc(40px + env(safe-area-inset-bottom)); max-width: none; }
+  .mobile-bar { padding: calc(8px + env(safe-area-inset-top)) 12px 8px; gap: 8px; }
+  .mobile-bar .brand-name { font-size: 20px; }
+  .mobile-bar .brand-mark { width: 34px; height: 34px; }
+  .mobile-bar .sino { color: #fff; }
+  .mobile-bar button svg { width: 24px; height: 24px; }
+  body.menu-aberto { overflow: hidden; }
+}
+
+@media (max-width: 640px) {
+  body { font-size: 15px; }
+  .page-title { font-size: 21px; }
+  .page-sub { font-size: 13.5px; }
+  .topbar { margin-bottom: 14px; gap: 10px; }
+  .topbar-actions { width: 100%; }
+  .card { padding: 14px; }
+  .grid { gap: 10px; }
+  .section-title { margin: 20px 0 10px; }
+
+  /* Indicadores: 2 por linha, valor inteiro (sem "R$ ...") */
+  .kpi { padding: 12px 12px 12px 14px; }
+  .kpi-label { font-size: 10.5px; letter-spacing: .6px; }
+  .kpi-value, .kpi.big .kpi-value { font-size: 18px; white-space: normal; overflow-wrap: anywhere; line-height: 1.2; }
+  .kpi-hint { font-size: 11.5px; }
+
+  /* iPhone dá zoom em campo com fonte < 16px: evita */
+  .input, .select, .textarea, .filters .input, .filters .select { font-size: 16px; }
+
+  /* Filtros: um campo por linha, botões ocupando a largura */
+  .filters { padding: 10px 12px; gap: 8px; }
+  .filters .field { min-width: 0; flex: 1 1 calc(50% - 4px); }
+  .filters > div[style*="margin-left"] { margin-left: 0 !important; width: 100%; }
+  .filters > div[style*="margin-left"] .btn { flex: 1; }
+
+  .btn { padding: 11px 14px; }
+  .btn.small { padding: 8px 11px; }
+  .form-row { grid-template-columns: 1fr; }
+
+  /* Tabelas viram cartões: rótulo à esquerda, valor à direita */
+  .table-wrap.scroll-y { max-height: none; overflow: visible; }
+  .table-wrap { margin: 0; overflow-x: visible; }
+  .tbl.cards, .tbl.cards tbody { display: block; width: 100%; }
+  .tbl.cards thead { display: none; }
+  .tbl.cards tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px 14px; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin: 0 0 10px; }
+  .tbl.cards tbody tr:hover { background: #fff; }
+  .tbl.cards td { display: block; padding: 0; border: 0; text-align: left; white-space: normal; overflow-wrap: anywhere; min-width: 0; }
+  .tbl.cards td::before { content: attr(data-label); display: block; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); margin-bottom: 1px; }
+  .tbl.cards td[data-label=""] { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+  .tbl.cards td[data-label=""]::before { display: none; }
+  .tbl.cards .row-actions { flex-wrap: wrap; }
+  .card > .table-wrap .tbl.cards tr:last-child { margin-bottom: 0; }
+
+  /* DRE e tabelas largas continuam rolando para o lado */
+  table.dre td:first-child { min-width: 160px; }
+
+  /* Painel lateral ocupa a tela toda */
+  .drawer { width: 100%; }
+  .drawer-head { padding: calc(12px + env(safe-area-inset-top)) 16px 12px; }
+  .drawer-body { padding: 16px 16px calc(32px + env(safe-area-inset-bottom)); }
+  .kv { font-size: 13.5px; }
+  .item-line { padding: 10px; }
+
+  .tabs { margin: 0 -14px; padding: 0 14px; scrollbar-width: none; }
+  .tab { padding: 10px 12px; }
+  .toasts { top: auto; bottom: calc(16px + env(safe-area-inset-bottom)); left: 16px; right: 16px; max-width: none; }
+  .chart-box { height: 230px; }
+  .chart-box.tall { height: 280px; }
+}
