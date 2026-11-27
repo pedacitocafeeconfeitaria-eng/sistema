@@ -488,3 +488,8 @@ table.dre .dre-total.final td:first-child { background: #2f3a32; }
   .chart-box { height: 230px; }
   .chart-box.tall { height: 280px; }
 }
+
+/* Quem está identificado pelo PIN (formulários da equipe) */
+.quem-bar { display: inline-flex; align-items: center; gap: 12px; margin-top: 12px; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.14); font-size: 13.5px; }
+.quem-bar .link-btn { color: #fff; text-decoration: underline; font-weight: 700; font-size: 13px; }
+.input[readonly] { cursor: default; }

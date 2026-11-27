@@ -122,6 +122,7 @@ export async function logout() {
 }
 
 let renderToken = 0;
+window.addEventListener('pedacito:pin', () => render());
 async function render() {
   const token = ++renderToken;
   destroyCharts();
@@ -137,6 +138,15 @@ async function render() {
         const { render: telaCodigo } = await import('./pages/codigo.js');
         root.replaceChildren();
         return telaCodigo(root, { onOk: render });
+      }
+      // Depois do código do aparelho, cada pessoa se identifica com o PIN pessoal
+      if (!acesso.sessao) {
+        const { render: telaPin, pinPuladoHoje } = await import('./pages/pin.js');
+        if (acesso.exigirPin || !pinPuladoHoje()) {
+          if (token !== renderToken) return;
+          root.replaceChildren();
+          return telaPin(root, { onOk: render, exigirPin: acesso.exigirPin });
+        }
       }
     }
     const mod = await PUBLIC[path]();

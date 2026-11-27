@@ -1,5 +1,5 @@
 // Minhas tarefas: o colaborador escolhe o nome e marca o que já fez hoje.
-import { api } from '../api.js';
+import { api, sessaoEquipe } from '../api.js';
 import { h, card, field, select, toast, loading, icon, dataBR, hojeISO } from '../ui.js';
 import { publicLayout, LOJAS, lembrar } from './_public.js';
 
@@ -8,12 +8,16 @@ const PRIO = { URGENTE: { label: 'Urgente', cls: 'danger' }, ALTA: { label: 'Alt
 export async function render(root) {
   const body = publicLayout(root, { title: 'Minhas tarefas', subtitle: 'O que o líder passou para você hoje.' });
   const mem = lembrar.get();
-  const st = { loja: mem.loja || '', func: mem.funcionario_id ? String(mem.funcionario_id) : '', nome: mem.nome || '' };
+  const ses = sessaoEquipe.get();
+  // Identificado pelo PIN: já sabe quem é e de qual loja; sem PIN, escolhe na lista como antes
+  const st = ses ? { loja: ses.loja || mem.loja || '', func: String(ses.funcionario_id), nome: ses.nome }
+    : { loja: mem.loja || '', func: mem.funcionario_id ? String(mem.funcionario_id) : '', nome: mem.nome || '' };
   const topo = h('div', { class: 'form-stack' }); const lista = h('div', { class: 'form-stack' });
   body.append(topo, lista);
   let equipe = [];
 
   async function carregarEquipe() {
+    if (ses && st.loja) { topo.replaceChildren(); return carregarTarefas(); }
     equipe = [];
     if (st.loja) { try { equipe = await api.get(`/api/public/equipe?loja=${encodeURIComponent(st.loja)}`); } catch (e) { toast(e.message, 'error'); } }
     if (!equipe.some((p) => String(p.id) === st.func)) st.func = '';

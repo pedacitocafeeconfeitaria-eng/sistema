@@ -1,5 +1,15 @@
 // Moldura comum dos formulários públicos.
 import { h, brand, icon } from '../ui.js';
+import { api, sessaoEquipe } from '../api.js';
+
+// "Você: Ana · Trocar pessoa" — quem está identificado pelo PIN neste aparelho
+export function quemBar() {
+  const s = sessaoEquipe.get();
+  if (!s) return null;
+  return h('div', { class: 'quem-bar' }, h('span', {}, 'Você: ', h('b', {}, s.nome)),
+    h('button', { class: 'link-btn', onClick: async () => { await api.post('/api/public/sair').catch(() => {}); window.dispatchEvent(new Event('pedacito:pin')); } }, 'Trocar pessoa'));
+}
+export const nomeSessao = () => sessaoEquipe.get()?.nome || '';
 
 export function publicLayout(root, { title, subtitle }) {
   const body = h('div', { class: 'public-body' });
@@ -7,7 +17,7 @@ export function publicLayout(root, { title, subtitle }) {
     h('header', { class: 'public-hero' }, h('div', { class: 'inner' },
       h('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' } },
         brand(), h('a', { class: 'back', href: '/', 'data-link': true }, '← Início')),
-      h('h1', {}, title), subtitle ? h('p', {}, subtitle) : null)),
+      h('h1', {}, title), subtitle ? h('p', {}, subtitle) : null, quemBar())),
     body));
   return body;
 }

@@ -1,12 +1,12 @@
 // Contagem de estoque: a equipe conta o que tem na loja; o sistema ajusta o saldo.
 import { api } from '../api.js';
 import { h, card, field, input, select, toast, num, alertBox, loading, icon } from '../ui.js';
-import { publicLayout, successCard, LOJAS, lembrar } from './_public.js';
+import { publicLayout, successCard, LOJAS, lembrar, nomeSessao } from './_public.js';
 
 export async function render(root) {
   const body = publicLayout(root, { title: 'Contagem de estoque', subtitle: 'Conte o que tem na loja e digite a quantidade de cada item.' });
   const mem = lembrar.get();
-  const st = { nome: mem.nome || '', loja: mem.loja || '', q: '', cat: '', obs: '' };
+  const st = { nome: nomeSessao() || mem.nome || '', loja: mem.loja || '', q: '', cat: '', obs: '' };
   const contado = new Map();
   let itens = [];
   const content = h('div', { class: 'form-stack' });
@@ -20,7 +20,7 @@ export async function render(root) {
   }
 
   function desenhar() {
-    const nome = input({ value: st.nome, placeholder: 'Seu nome', onInput: (e) => { st.nome = e.target.value; } });
+    const nome = input({ value: st.nome, placeholder: 'Seu nome', readOnly: !!nomeSessao(), onInput: (e) => { st.nome = e.target.value; } });
     const loja = select([{ value: '', label: 'Selecione' }, ...LOJAS], { onChange: (e) => { st.loja = e.target.value; contado.clear(); carregar(); } });
     loja.value = st.loja;
     const cab = card({}, h('div', { class: 'form-row' }, field('Nome *', nome), field('Loja *', loja)));

@@ -11,6 +11,14 @@ export const codigoEquipe = {
   get: () => { try { return localStorage.getItem(COD_KEY) || ''; } catch { return ''; } },
   set: (v) => { try { localStorage.setItem(COD_KEY, v); } catch { /* sem armazenamento */ } },
 };
+// Sessão do PIN pessoal (vale até as 4h do dia seguinte, neste aparelho)
+const SES_KEY = 'pedacito_sessao_equipe';
+export const sessaoEquipe = {
+  get: () => { try { const s = JSON.parse(localStorage.getItem(SES_KEY) || 'null'); return s && new Date(s.expira) > new Date() ? s : null; } catch { return null; } },
+  set: (v) => { try { if (v) localStorage.setItem(SES_KEY, JSON.stringify(v)); else localStorage.removeItem(SES_KEY); } catch { /* sem armazenamento */ } },
+};
+// O que vai no p_codigo das funções do banco: "CODIGO" ou "CODIGO|TOKEN"
+const cod = () => { const s = sessaoEquipe.get(); return codigoEquipe.get() + (s ? `|${s.token}` : ''); };
 const LOJA_UI = { VILLA: 'Villa', SOUZA_CRUZ: 'Souza Cruz' };
 const lojaUI = (l) => LOJA_UI[l] || l || '—';
 const lojaDB = (l) => (/souza/i.test(l || '') ? 'SOUZA_CRUZ' : /villa/i.test(l || '') ? 'VILLA' : null);
@@ -22,7 +30,8 @@ function erro(e, status) {
   const msg = e?.message || String(e);
   const err = new Error(/Código da equipe inválido/.test(msg) ? 'Código da equipe inválido. Digite o código novamente.' : msg);
   err.status = status || (/JWT|permission|denied/i.test(msg) ? 403 : 400);
-  if (/Código da equipe/.test(msg)) { codigoEquipe.set(''); err.status = 401; }
+  if (/Código da equipe/.test(msg)) { codigoEquipe.set(''); sessaoEquipe.set(null); err.status = 401; }
+  if (/Identifique-se com seu PIN|acesso expirou/.test(msg)) { sessaoEquipe.set(null); err.status = 401; err.pin = true; }
   return err;
 }
 const ok = ({ data, error }) => { if (error) throw erro(error); return data; };
@@ -42,7 +51,7 @@ async function tudo(tabela, select = '*', ajustar = (q) => q) {
 let cacheProdutos = null;
 let cacheInsumos = null;
 async function produtosVenda(force) {
-  if (!cacheProdutos || force) cacheProdutos = await rpc('form_produtos', { p_codigo: codigoEquipe.get(), p_loja: null });
+  if (!cacheProdutos || force) cacheProdutos = await rpc('form_produtos', { p_codigo: cod(), p_loja: null });
   return cacheProdutos;
 }
 async function produtoPorNome(nome) {
@@ -53,11 +62,30 @@ async function produtoPorNome(nome) {
 // ---------- rotas ----------
 const ROTAS = {
   // Código da equipe
-  'GET /api/public/acesso': async () => ({ precisaCodigo: !codigoEquipe.get() }),
+  'GET /api/public/acesso': async () => {
+    if (!codigoEquipe.get()) return { precisaCodigo: true };
+    const sessao = sessaoEquipe.get();
+    if (sessao) return { precisaCodigo: false, sessao };
+    const c = await rpc('form_config_equipe', { p_codigo: codigoEquipe.get() }).catch((e) => { if (e.status === 401) throw e; return { exigir_pin: false }; });
+    return { precisaCodigo: false, sessao: null, exigirPin: !!c.exigir_pin };
+  },
   'POST /api/public/acesso': async (b) => {
-    const cod = String(b.codigo || '').trim();
-    await rpc('form_produtos', { p_codigo: cod, p_loja: null }).catch(() => { throw erro('Código incorreto.', 401); });
-    codigoEquipe.set(cod);
+    const c = String(b.codigo || '').trim();
+    await rpc('form_equipe', { p_codigo: c, p_loja: null }).catch(() => { throw erro('Código incorreto.', 401); });
+    codigoEquipe.set(c);
+    return { ok: true };
+  },
+  // PIN pessoal
+  'POST /api/public/entrar': async (b) => {
+    const r = await rpc('equipe_entrar', { p_codigo: codigoEquipe.get(), p_funcionario: Number(b.funcionario_id), p_pin: String(b.pin || '') });
+    if (!r.ok) throw erro(r.erro);
+    const s = { token: r.token, funcionario_id: r.funcionario_id, nome: r.nome, loja: r.loja, expira: r.expira };
+    sessaoEquipe.set(s);
+    return s;
+  },
+  'POST /api/public/sair': async () => {
+    const s = sessaoEquipe.get(); sessaoEquipe.set(null);
+    if (s) await sb.rpc('equipe_sair', { p_token: s.token });
     return { ok: true };
   },
 
@@ -67,21 +95,21 @@ const ROTAS = {
     return { produtos: lista.map((p) => ({ produto: p.nome, tipo: p.tipo, valor: Number(p.preco) || 0, status: 'Ativo Ambos' })) };
   },
   'GET /api/public/insumos': async () => {
-    cacheInsumos = await rpc('form_insumos', { p_codigo: codigoEquipe.get() });
+    cacheInsumos = await rpc('form_insumos', { p_codigo: cod() });
     return { produtos: cacheInsumos.map((i) => ({ produto: i.nome, categoria: i.categoria || 'Sem categoria', unidade: i.unidade, status: 'ATIVO' })) };
   },
-  'GET /api/public/bancos': async () => ({ bancos: await rpc('form_bancos', { p_codigo: codigoEquipe.get() }).catch(() => []) }),
+  'GET /api/public/bancos': async () => ({ bancos: await rpc('form_bancos', { p_codigo: cod() }).catch(() => []) }),
 
   // Contagem de estoque
-  'GET /api/public/saldos': async (_, q) => ({ itens: await rpc('form_saldos', { p_codigo: codigoEquipe.get(), p_loja: q.loja }) }),
-  'GET /api/public/catalogo-encomenda': async () => rpc('form_catalogo_encomenda', { p_codigo: codigoEquipe.get() }),
-  'POST /api/public/encomenda': async (b) => ({ numero: await rpc('form_encomenda', { p_codigo: codigoEquipe.get(), p: b }) }),
-  'GET /api/public/agenda-encomendas': async (_, q) => rpc('form_agenda_encomendas', { p_codigo: codigoEquipe.get(), p_loja: lojaDB(q.loja), p_de: q.de, p_ate: q.ate }),
-  'POST /api/public/encomenda-status': async (b) => rpc('form_encomenda_status', { p_codigo: codigoEquipe.get(), p_id: b.id, p_status: b.status }),
-  'GET /api/public/equipe': async (_, q) => rpc('form_equipe', { p_codigo: codigoEquipe.get(), p_loja: q.loja }),
-  'GET /api/public/minhas-tarefas': async (_, q) => rpc('form_minhas_tarefas', { p_codigo: codigoEquipe.get(), p_loja: q.loja, p_funcionario: Number(q.f) }),
-  'POST /api/public/tarefa': async (b) => rpc('form_concluir_tarefa', { p_codigo: codigoEquipe.get(), p_tarefa: b.id, p_data: b.data, p_nome: b.nome, p_obs: b.obs || null, p_desfazer: !!b.desfazer }),
-  'POST /api/public/contagem': async (b) => rpc('form_contagem', { p_codigo: codigoEquipe.get(), p_loja: b.loja, p_nome: b.nome, p_itens: b.itens, p_obs: b.obs || null }),
+  'GET /api/public/saldos': async (_, q) => ({ itens: await rpc('form_saldos', { p_codigo: cod(), p_loja: q.loja }) }),
+  'GET /api/public/catalogo-encomenda': async () => rpc('form_catalogo_encomenda', { p_codigo: cod() }),
+  'POST /api/public/encomenda': async (b) => ({ numero: await rpc('form_encomenda', { p_codigo: cod(), p: b }) }),
+  'GET /api/public/agenda-encomendas': async (_, q) => rpc('form_agenda_encomendas', { p_codigo: cod(), p_loja: lojaDB(q.loja), p_de: q.de, p_ate: q.ate }),
+  'POST /api/public/encomenda-status': async (b) => rpc('form_encomenda_status', { p_codigo: cod(), p_id: b.id, p_status: b.status }),
+  'GET /api/public/equipe': async (_, q) => rpc('form_equipe', { p_codigo: cod(), p_loja: q.loja }),
+  'GET /api/public/minhas-tarefas': async (_, q) => rpc('form_minhas_tarefas', { p_codigo: cod(), p_loja: q.loja, p_funcionario: Number(q.f) }),
+  'POST /api/public/tarefa': async (b) => rpc('form_concluir_tarefa', { p_codigo: cod(), p_tarefa: b.id, p_data: b.data, p_nome: b.nome, p_obs: b.obs || null, p_desfazer: !!b.desfazer }),
+  'POST /api/public/contagem': async (b) => rpc('form_contagem', { p_codigo: cod(), p_loja: b.loja, p_nome: b.nome, p_itens: b.itens, p_obs: b.obs || null }),
 
   // Cozinha: produção
   'POST /api/public/producao': async (b) => {
@@ -91,27 +119,27 @@ const ROTAS = {
       if (!prod) throw erro(`Produto não encontrado: ${p.produto}`);
       itens.push({ produto_id: prod.id, quantidade: Number(p.quantidade), observacao: p.observacao || '' });
     }
-    await rpc('form_producao', { p_codigo: codigoEquipe.get(), p_data: b.data, p_loja: b.loja, p_turno: b.turno, p_nome: b.nome, p_itens: itens });
+    await rpc('form_producao', { p_codigo: cod(), p_data: b.data, p_loja: b.loja, p_turno: b.turno, p_nome: b.nome, p_itens: itens });
     return { ok: true };
   },
   // Cozinha: desperdício
   'POST /api/public/desperdicio-cozinha': async (b) => {
     const itens = (b.produtos || []).map((p) => ({ nome: p.produto, quantidade: Number(p.quantidade), valor: Number(p.valor) || 0, motivo: p.motivo }));
-    await rpc('form_desperdicio', { p_codigo: codigoEquipe.get(), p_origem: 'COZINHA', p_data: b.data, p_loja: b.loja, p_turno: b.turno, p_nome: b.nome, p_itens: itens });
+    await rpc('form_desperdicio', { p_codigo: cod(), p_origem: 'COZINHA', p_data: b.data, p_loja: b.loja, p_turno: b.turno, p_nome: b.nome, p_itens: itens });
     return { ok: true };
   },
   // Balcão
   'POST /api/public/registro': async (b) => {
-    const cod = codigoEquipe.get();
+    const c = cod();
     if (b.teveProblema === 'sim' && (b.problemas || []).length) {
       const itens = [];
       for (const p of b.problemas) {
         const prod = await produtoPorNome(p.produto);
         itens.push(prod ? { produto_id: prod.id, quantidade: Number(p.quantidade), motivo: p.motivo } : { nome: p.produto, quantidade: Number(p.quantidade), motivo: p.motivo });
       }
-      await rpc('form_desperdicio', { p_codigo: cod, p_origem: 'BALCAO', p_data: b.data, p_loja: b.loja, p_turno: b.turno, p_nome: b.nome, p_itens: itens });
+      await rpc('form_desperdicio', { p_codigo: c, p_origem: 'BALCAO', p_data: b.data, p_loja: b.loja, p_turno: b.turno, p_nome: b.nome, p_itens: itens });
     }
-    await rpc('form_balcao', { p_codigo: cod, p_data: b.data, p_loja: b.loja, p_turno: b.turno, p_nome: b.nome,
+    await rpc('form_balcao', { p_codigo: c, p_data: b.data, p_loja: b.loja, p_turno: b.turno, p_nome: b.nome,
       p_observacoes: b.observacoes || null, p_teve_falta: b.teveFalta === 'sim', p_produtos_falta: b.teveFalta === 'sim' ? b.produtosFalta : null });
     return { ok: true };
   },
@@ -124,23 +152,23 @@ const ROTAS = {
   },
   // Movimentação de estoque
   'POST /api/public/movimentacao': async (b) => {
-    const r = await rpc('form_movimentacao_v2', { p_codigo: codigoEquipe.get(), p: b });
+    const r = await rpc('form_movimentacao_v2', { p_codigo: cod(), p: b });
     return { ...r, avisos: [] };
   },
   // Lista de compras
   'GET /api/public/lista': async () => {
-    const rows = await rpc('form_lista', { p_codigo: codigoEquipe.get() });
+    const rows = await rpc('form_lista', { p_codigo: cod() });
     return { itens: rows.map((r) => ({ id: r.id, produto: r.item, quantidade: r.quantidade, observacao: r.pedido_por ? `Pedido por ${r.pedido_por}` : '', loja: lojaUI(r.loja), comprado: r.comprado, created_at: r.criado_em })) };
   },
   'POST /api/public/lista': async (b) => {
     if (!String(b.produto || '').trim()) throw erro('Informe o produto.');
     const qtd = [b.quantidade, b.observacao].filter((x) => String(x || '').trim()).join(' · ');
-    await rpc('form_lista_add', { p_codigo: codigoEquipe.get(), p_loja: b.loja, p_item: b.produto, p_qtd: qtd || null, p_nome: null });
+    await rpc('form_lista_add', { p_codigo: cod(), p_loja: b.loja, p_item: b.produto, p_qtd: qtd || null, p_nome: null });
     return { ok: true };
   },
-  'PATCH /api/public/lista/:id': async (b, q, id) => { await rpc('form_lista_marcar', { p_codigo: codigoEquipe.get(), p_id: Number(id), p_comprado: !!b.comprado }); return { ok: true }; },
+  'PATCH /api/public/lista/:id': async (b, q, id) => { await rpc('form_lista_marcar', { p_codigo: cod(), p_id: Number(id), p_comprado: !!b.comprado }); return { ok: true }; },
   'DELETE /api/public/lista/:id': async (b, q, id) => {
-    await rpc('form_lista_remover', { p_codigo: codigoEquipe.get(), p_id: id === 'comprados' ? null : Number(id) });
+    await rpc('form_lista_remover', { p_codigo: cod(), p_id: id === 'comprados' ? null : Number(id) });
     return { ok: true };
   },
 
@@ -253,8 +281,15 @@ function resolver(method, url) {
 
 async function request(method, url, body) {
   const r = resolver(method, url);
+  // Formulários: com PIN, o nome é sempre o da pessoa identificada (o banco também garante isso)
+  const s = url.startsWith('/api/public/') && body ? sessaoEquipe.get() : null;
+  if (s) { if ('nome' in body) body.nome = s.nome; if ('atendente' in body) body.atendente = s.nome; }
   if (!r) throw erro(`Função ainda não disponível no sistema novo (${method} ${url}).`, 404);
-  try { return await r.fn(body || {}, r.q, ...r.params); } catch (e) { throw e.status ? e : erro(e); }
+  try { return await r.fn(body || {}, r.q, ...r.params); } catch (e) {
+    const x = e.status ? e : erro(e);
+    if (x.pin) setTimeout(() => window.dispatchEvent(new Event('pedacito:pin')), 1500); // mostra o erro e volta para a tela do PIN
+    throw x;
+  }
 }
 
 export const api = {
