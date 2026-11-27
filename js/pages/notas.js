@@ -40,7 +40,8 @@ export async function render(main) {
     area.replaceChildren(
       h('div', { class: 'grid g4', style: { marginBottom: '14px' } },
         kpi({ label: 'Notas no mês', value: num(doMes.length), tone: 'sage' }),
-        kpi({ label: 'Comprado no mês', value: brl(doMes.reduce((s, n) => s + Number(n.valor_total), 0)), tone: 'expense' }),
+        kpi({ label: 'Comprado no mês', value: brl(doMes.reduce((s, n) => s + Number(n.valor_total), 0)), tone: 'expense',
+          hint: doMes.some(temImpostos) ? `${brl(doMes.reduce((s, n) => s + Number(n.impostos_total || 0), 0))} de impostos destacados nas notas` : undefined }),
         kpi({ label: 'Com itens para vincular', value: num(notas.filter((n) => pend(n) > 0).length), tone: 'warning', hint: 'esses itens ainda não entraram no estoque' }),
         kpi({ label: 'Não lançadas no Raffinato', value: num(notas.filter((n) => !n.lancada_raffinato).length), tone: 'info' })),
       h('div', { class: 'filters', style: { marginBottom: '14px' } },
@@ -56,6 +57,7 @@ export async function render(main) {
         { label: 'Loja', render: (n) => lojaNome(n.loja) },
         { label: 'Itens', render: (n) => num(n.nota_itens.length), right: true },
         { label: 'Valor', render: (n) => brl(n.valor_total), right: true },
+        { label: 'Impostos', render: (n) => temImpostos(n) ? brl(n.impostos_total) : '—', right: true },
         { label: 'Situação', render: (n) => { const p = pend(n); return h('span', { class: `badge ${p ? 'warn' : 'ok'}` }, p ? `${p} p/ vincular` : 'Completa'); } },
         { label: 'Raffinato', render: (n) => h('span', { class: `badge ${n.lancada_raffinato ? 'ok' : ''}` }, n.lancada_raffinato ? 'Lançada' : 'Pendente') },
         { label: 'Origem', render: (n) => ORIGEM[n.origem] || n.origem || '—' },
@@ -137,6 +139,7 @@ export async function render(main) {
         h('div', { class: 'kv-list' },
           ...[['Emissão', dataBR(n.data_emissao)], ['Loja', lojaNome(n.loja)], ['Valor total', brl(n.valor_total)], ['Origem', ORIGEM[n.origem] || n.origem], ['Chave', n.chave_acesso ? `…${n.chave_acesso.slice(-12)}` : '—'], ['Série', n.serie || '—']]
             .map(([k, v]) => h('div', { class: 'kv' }, h('span', { class: 'muted' }, k), h('span', {}, v)))),
+        ...quadroImpostos(n),
         h('div', { class: 'form-section-title' }, `Itens (${itens.length})`),
         itens.some((i) => !i.insumo_id && !i.estoque_lancado) ? h('div', { class: 'alert warn' }, 'Diga qual insumo é cada item. Use o "1 unidade = quantos?" quando a nota vem em caixa ou fardo (ex.: fardo com 5 kg → 5).') : null,
         ...linhas,
@@ -151,4 +154,26 @@ export async function render(main) {
   }
 
   carregar();
+}
+
+const temImpostos = (n) => n.impostos_informados === true;
+
+// Impostos destacados no XML: ICMS, PIS, COFINS e IBS/CBS já estão dentro do preço; ST, FCP-ST e IPI vêm somados por cima.
+function quadroImpostos(n) {
+  if (!temImpostos(n)) return [];
+  const linhas = [['ICMS', n.icms], ['ICMS-ST', n.icms_st], ['FCP-ST', n.fcp_st], ['IPI', n.ipi], ['PIS', n.pis], ['COFINS', n.cofins], ['IBS', n.ibs], ['CBS', n.cbs]]
+    .filter(([, v]) => Number(v) > 0);
+  const porCima = Number(n.icms_st) + Number(n.fcp_st) + Number(n.ipi);
+  return [
+    h('div', { class: 'form-section-title' }, 'Impostos da nota'),
+    linhas.length
+      ? h('div', { class: 'kv-list' },
+          ...linhas.map(([k, v]) => h('div', { class: 'kv' }, h('span', { class: 'muted' }, k), h('span', {}, brl(v)))),
+          h('div', { class: 'kv' }, h('b', {}, 'Total destacado'), h('b', {}, brl(n.impostos_total))),
+          n.tributos_aprox != null ? h('div', { class: 'kv' }, h('span', { class: 'muted' }, 'Carga aproximada de tributos (informada)'), h('span', {}, brl(n.tributos_aprox))) : null)
+      : h('p', { class: 'muted', style: { margin: 0 } }, 'Nenhum imposto destacado nesta nota (fornecedor do Simples Nacional ou isento).'),
+    linhas.length ? h('p', { class: 'muted', style: { margin: 0, fontSize: '12.5px' } }, porCima > 0
+      ? `${brl(porCima)} (ST/IPI) foram somados por cima do preço dos produtos; o restante já está dentro do preço.`
+      : 'Esses impostos já estão dentro do preço dos produtos; nada foi cobrado à parte.') : null,
+  ];
 }

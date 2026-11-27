@@ -17,7 +17,18 @@ export function lerNFe(xmlTexto) {
   const tPag = t(q(inf, 'pag'), 'tPag');
   const FORMAS = { '01': 'Dinheiro', '03': 'Cartão', '04': 'Débito', '15': 'Boleto', '17': 'Pix', '90': 'Sem pagamento' };
   const emissao = (t(ide, 'dhEmi') || t(ide, 'dEmi') || '').slice(0, 10) || null;
-  const total = num(t(q(inf, 'ICMSTot'), 'vNF'));
+  const tot = q(inf, 'ICMSTot');
+  const total = num(t(tot, 'vNF'));
+  // Impostos destacados na nota (totais do XML). IBS/CBS: reforma tributária, a partir de 2026.
+  const v = (el, tag) => num(t(el, tag)) || 0;
+  const ibscbs = q(inf, 'IBSCBSTot');
+  const impostos = {
+    icms: v(tot, 'vICMS'), icms_st: v(tot, 'vST'), fcp_st: v(tot, 'vFCPST'), ipi: v(tot, 'vIPI'),
+    pis: v(tot, 'vPIS'), cofins: v(tot, 'vCOFINS'), ibs: v(q(ibscbs, 'gIBS'), 'vIBS'), cbs: v(q(ibscbs, 'gCBS'), 'vCBS'),
+    tributos_aprox: num(t(tot, 'vTotTrib')), frete: v(tot, 'vFrete'), outras: v(tot, 'vOutro'),
+  };
+  // Bonificação/remessa sem cobrança (tPag 90): não gera conta a pagar
+  const semPagamento = !duplicatas.length && tPag === '90';
   return {
     chave: (inf.getAttribute('Id') || '').replace(/^NFe/, '') || null,
     numero: t(ide, 'nNF'), serie: t(ide, 'serie'), data_emissao: emissao, valor_total: total,
@@ -25,7 +36,8 @@ export function lerNFe(xmlTexto) {
     fornecedor: { cnpj: t(emit, 'CNPJ'), nome: t(emit, 'xFant') || t(emit, 'xNome'), razao: t(emit, 'xNome'), telefone: t(q(emit, 'enderEmit'), 'fone') },
     itens,
     // Sem duplicatas no XML: uma parcela à vista na data de emissão
-    duplicatas: duplicatas.length ? duplicatas : (total ? [{ numero: '1', vencimento: emissao, valor: total }] : []),
+    impostos,
+    duplicatas: duplicatas.length ? duplicatas : (total && !semPagamento ? [{ numero: '1', vencimento: emissao, valor: total }] : []),
     forma_pagamento: duplicatas.length ? 'Boleto' : (FORMAS[tPag] || 'À vista'),
     pago: !duplicatas.length && ['01', '03', '04', '17'].includes(tPag),
     origem: 'xml',
