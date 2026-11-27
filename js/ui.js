@@ -168,7 +168,7 @@ export function radios(name, options, value, onChange) {
 }
 
 // Campo com busca (lista filtrável de produtos).
-export function combo({ options = [], value = '', placeholder = 'Selecione', onSelect, disabled = false }) {
+export function combo({ options = [], value = '', placeholder = 'Selecione', onSelect, onCreate, createLabel = 'Cadastrar novo', disabled = false }) {
   let opts = options;
   let open = false;
   let hl = 0;
@@ -182,7 +182,10 @@ export function combo({ options = [], value = '', placeholder = 'Selecione', onS
   };
   const draw = () => {
     const f = filtered();
-    list.replaceChildren(...(f.length ? f.map((o, i) => h('div', { class: `combo-opt${i === hl ? ' hl' : ''}`, onMousedown: (e) => { e.preventDefault(); pick(o); } }, h('span', {}, o.label), o.sub ? h('small', {}, o.sub) : null)) : [h('div', { class: 'combo-empty' }, 'Nenhum produto encontrado.')]));
+    const texto = inp.value.trim();
+    const criar = onCreate ? h('div', { class: 'combo-opt combo-criar', onMousedown: (e) => { e.preventDefault(); open = false; draw(); onCreate(texto); } },
+      h('span', {}, `+ ${createLabel}${texto ? `: "${texto}"` : ''}`)) : null;
+    list.replaceChildren(...(f.length ? f.map((o, i) => h('div', { class: `combo-opt${i === hl ? ' hl' : ''}`, onMousedown: (e) => { e.preventDefault(); pick(o); } }, h('span', {}, o.label), o.sub ? h('small', {}, o.sub) : null)) : [h('div', { class: 'combo-empty' }, 'Nenhum encontrado.')]), criar);
     list.classList.toggle('hidden', !open);
   };
   const pick = (o) => { inp.value = o.label; open = false; draw(); onSelect && onSelect(o); };

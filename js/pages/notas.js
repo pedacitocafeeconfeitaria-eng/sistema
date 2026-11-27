@@ -16,6 +16,38 @@ export async function render(main) {
   const st = { status: '', loja: '', q: '' };
   let notas = [], forn = new Map(), insumos = [], fotos = [];
 
+  // Cadastro rápido: o item da nota ainda não existe como insumo
+  function novoInsumo(texto, box, pronto) {
+    const limpo = String(texto || '').toUpperCase().replace(/\s+/g, ' ').trim();
+    const nome = input({ value: limpo });
+    const un = select(UNIDADES_INSUMO); un.value = /\bKG\b|\d\s?KG/.test(limpo) ? 'KG' : 'UN';
+    const cats = [...new Set(insumos.map((i) => i.categoria).filter(Boolean))].sort();
+    const cat = h('div', {}, input({ list: 'cat-ins-nota', placeholder: 'Ex.: Doces e confeitaria' }), h('datalist', { id: 'cat-ins-nota' }, cats.map((c) => h('option', { value: c }))));
+    const salvar = h('button', { class: 'btn small' }, 'Cadastrar e usar');
+    salvar.addEventListener('click', async () => {
+      const n = nome.value.trim().toUpperCase();
+      if (!n) return toast('Dê um nome ao insumo.', 'error');
+      salvar.disabled = true;
+      try {
+        const existente = insumos.find((i) => i.nome.toUpperCase() === n);
+        const ins = existente || ok(await sb.from('insumos').insert({ nome: n, unidade: un.value, categoria: cat.querySelector('input').value.trim() || null, ativo: true, uso: 'estoque' })
+          .select('id,nome,unidade,custo_unitario,categoria,uso').single());
+        if (!existente) { insumos.push(ins); insumos.sort((a, b) => a.nome.localeCompare(b.nome)); clearMemo(); }
+        box.replaceChildren();
+        toast(`Insumo "${ins.nome}" cadastrado. Agora é só informar quantos vêm em cada unidade e tocar em Vincular.`, 'ok');
+        pronto(ins);
+      } catch (e) { toast(/duplicate|unique/i.test(e.message) ? 'Já existe um insumo com esse nome.' : e.message, 'error'); salvar.disabled = false; }
+    });
+    box.replaceChildren(h('div', { class: 'novo-insumo' },
+      h('b', {}, 'Novo insumo'),
+      h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'flex-end' } },
+        h('div', { style: { flex: 2, minWidth: '200px' } }, field('Nome', nome)),
+        field('Controlar em', un),
+        h('div', { style: { flex: 1, minWidth: '160px' } }, field('Categoria', cat))),
+      h('div', { style: { display: 'flex', gap: '8px' } }, salvar, h('button', { class: 'btn ghost small', onClick: () => box.replaceChildren() }, 'Cancelar'))));
+    nome.focus();
+  }
+
   async function carregar() {
     area.replaceChildren(loading('Carregando notas...'));
     try {
@@ -184,7 +216,12 @@ export async function render(main) {
         const atualizaDica = () => { const i = insMap.get(escolhido); const f = Number(fator.value.replace(',', '.')) || 1;
           dica.textContent = i ? `Entra ${num(it.quantidade * f)} ${i.unidade} no estoque · custo ${brl(it.valor_total / (it.quantidade * f))}/${i.unidade}` : ''; };
         fator.addEventListener('input', atualizaDica);
-        const c = combo({ options: insumos.map((i) => ({ value: i.id, label: i.nome, sub: i.unidade })), placeholder: 'Qual insumo é este?', onSelect: (o) => { escolhido = o?.value || null; atualizaDica(); } });
+        const novoBox = h('div');
+        const c = combo({ options: insumos.map((i) => ({ value: i.id, label: i.nome, sub: i.unidade })), placeholder: 'Qual insumo é este?', onSelect: (o) => { escolhido = o?.value || null; atualizaDica(); },
+          createLabel: 'Cadastrar novo insumo', onCreate: (texto) => novoInsumo(texto || it.descricao, novoBox, (ins) => {
+            insMap.set(ins.id, ins); escolhido = ins.id; c.setValue(ins.nome);
+            c.setOptions(insumos.map((i) => ({ value: i.id, label: i.nome, sub: i.unidade }))); atualizaDica();
+          }) });
         return h('div', { class: 'item-line', style: { flexDirection: 'column', alignItems: 'stretch', borderColor: 'var(--warning)' } },
           h('div', {}, h('b', {}, it.descricao), h('span', { class: 'muted', style: { marginLeft: '8px', fontSize: '12.5px' } }, `${num(it.quantidade)} ${it.unidade || ''} · ${brl(it.valor_total)}`)),
           h('div', { style: { display: 'flex', gap: '8px', alignItems: 'flex-end', flexWrap: 'wrap' } },
@@ -199,7 +236,7 @@ export async function render(main) {
             h('button', { class: 'btn ghost small', title: 'Frete, serviço ou item que não é controlado no estoque', onClick: async () => {
               try { ok(await sb.rpc('ignorar_item_nota', { p_item: it.id })); desenharNota(); carregar(); } catch (e) { toast(e.message, 'error'); }
             } }, 'Não é estoque')),
-          dica);
+          dica, novoBox);
       });
       corpo.replaceChildren(h('div', { class: 'form-stack' },
         h('div', { class: 'kv-list' },
@@ -258,3 +295,6 @@ function quadroImpostos(n) {
       : 'Esses impostos já estão dentro do preço dos produtos; nada foi cobrado à parte.') : null,
   ];
 }
+
+// Cadastro rápido de insumo direto da nota (quando o item ainda não existe no cadastro)
+const UNIDADES_INSUMO = [{ value: 'KG', label: 'kg' }, { value: 'G', label: 'g' }, { value: 'L', label: 'litro' }, { value: 'ML', label: 'ml' }, { value: 'UN', label: 'unidade' }, { value: 'CX', label: 'caixa' }, { value: 'PCT', label: 'pacote' }, { value: 'FD', label: 'fardo' }];
