@@ -57,7 +57,7 @@ export async function render(main, { session }) {
       pend.map((u) => {
         const nome = input({ value: u.email.split('@')[0], placeholder: 'Nome' });
         const fun = select([{ value: '', label: 'Escolha a função' }, ...funcoes.map((f) => ({ value: f.id, label: f.nome }))]);
-        return h('div', { style: { display: 'grid', gridTemplateColumns: '1.3fr 1fr 1fr auto', gap: '10px', alignItems: 'end', padding: '8px 0', borderBottom: '1px solid #efeadf' } },
+        return h('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '10px', alignItems: 'end', padding: '8px 0', borderBottom: '1px solid #efeadf' } },
           h('div', {}, h('b', {}, u.email), h('div', { class: 'muted', style: { fontSize: '12.5px' } }, `Criou em ${new Date(u.criado_em).toLocaleDateString('pt-BR')}`)),
           field('Nome', nome), field('Função', fun),
           h('button', { class: 'btn', onClick: async () => {
